@@ -1,0 +1,154 @@
+Pastas e arquivos
+################################
+/dados_simulacao:  3 arquivos .csv de treino e 3 arquivos .csv de validação iguais à simulação já realizada. 
+/dados_TCGA: 48 arquivos .csv com todos os dados de cada centro (referente aos dados TCGA).
+/quickstart-docker: 3 pastas: quickstart-docker (template), quickstart-docker-2 (Redes Neurais) e quickstart-docker-logreg (Regressão Logística)
+/quickstart-docker-2 (assim como demais pastas quickstart-docker): arquivos clientapp.Dockerfile, serverapp.Dockerfile, pyproject.toml e fedpca.py, além da pasta com arquivos do Flower.
+/quickstart-docker-2/quickstart_docker_2: arquivos client_app.py, server_app.py, __init_.py, my_strategy.py, task.py.
+################################
+
+Estrutura Utilizada
+################################
+1) Docker bridge network 
+2) Superlink (servidor) conectado à network, com portas mapeadas para ServerAppIO API, Fleet API e Exec API, com opções insecure (sem criptografia) e isolated process (criado independentemente dos ServerApp)
+3) Supernode (cliente) conectado à network, com porta mapeada para Supernode API, conectado ao Fleet API do Superlink, com endereço para comunicação com ClientApp e mesmas opções insecure e isolation process
+4) ServerApp conectado à network, conectado ao ServerAppIO API do Superlink e com opção insecure. São construídos a partir do arquivo serverapp.Dockerfile (imagem Docker).
+5) ClientApp conectado à network , conectado ao ClientAppIO do Supernode e com opção insecure. São construídos a partir do arquivo serverapp.Dockerfile (imagem Docker). OBS.: Nesses contêineres estão os dados.
+################################
+
+Criação do Projeto Flower
+################################
+1) Após instalação do pacote flwr, crie um projeto Flower: 
+--------------------------------
+ flwr new quickstart-docker --framework PyTorch --username flower
+cd quickstart-docker
+--------------------------------
+
+2) Altere os arquivos Flower de acordo com os modelos desejados (pacotes), dados (endereços nos contêineres ClientApp), estratégia desenvolvida. No arquivo pyproject.toml devem ser definidas algumas configurações, como dependências (pacotes) e características do treinamento federado (quantidade de rodadas, épocas locais, etc)
+
+3) Crie uma Docker bridge network: 
+--------------------------------
+docker network create --driver bridge flwr-network
+--------------------------------
+
+4) Crie o contêiner do Superlink:
+--------------------------------
+docker run --rm \
+      -p 9091:9091 -p 9092:9092 -p 9093:9093 \
+      --network flwr-network \
+      --name superlink \
+      --detach \
+      flwr/superlink:1.18.0 \
+      --insecure \
+      --isolation \
+      process
+--------------------------------
+
+5) Crie  um contêiner de Supernode para cada cliente (alterando -p, name e clientappio-api-address): 
+--------------------------------
+docker run --rm \
+    -p 9094:9094 \
+    --network flwr-network \
+    --name supernode-1 \
+    --detach \
+    flwr/supernode:1.18.0  \
+    --insecure \
+    --superlink superlink:9092 \
+    --clientappio-api-address 0.0.0.0:9094 \
+    --isolation process
+--------------------------------
+
+6) Crie um arquivo serverapp.Dockerfile e adicione:
+--------------------------------
+FROM flwr/serverapp:1.18.0
+
+WORKDIR /app
+
+COPY pyproject.toml .
+RUN sed -i 's/.*flwr\[simulation\].*//' pyproject.toml \
+   && python -m pip install -U --no-cache-dir .
+
+ENTRYPOINT ["flwr-serverapp"]
+--------------------------------
+
+7) Construa a imagem do Serverapp:
+--------------------------------
+docker build -f serverapp.Dockerfile -t flwr_serverapp:0.0.1 .
+8) Crie um contêiner Serverapp
+docker run --rm \
+    --network flwr-network \
+    --name serverapp \
+    --detach \
+    flwr_serverapp:0.0.1 \
+    --insecure \
+    --serverappio-api-address superlink:9091
+--------------------------------
+
+9) Crie um arquivo “clientapp.Dockerfile e adicione:
+--------------------------------
+FROM flwr/clientapp:1.18.0
+
+WORKDIR /app
+COPY pyproject.toml .
+RUN sed -i 's/.*flwr\[simulation\].*//' pyproject.toml \
+    && python -m pip install -U --no-cache-dir .
+
+ENTRYPOINT ["flwr-clientapp"]
+--------------------------------
+10) Construa a imagem do Clientapp:
+--------------------------------
+docker build -f clientapp.Dockerfile -t flwr_clientapp:0.0.1 .
+--------------------------------
+
+11) Crie um contêiner Clientapp para cada cliente (alterando o clientappio-api-address):
+--------------------------------
+docker run --rm \
+    --network flwr-network \
+    --detach \ 
+    flwr_clientapp:0.0.1  \
+    --insecure \
+    --clientappio-api-address supernode-1:9094 
+--------------------------------
+
+11a) Caso queira adicionar os dados no container:
+--------------------------------
+docker run --rm \
+    -v /dados_simulacao/fl_conj_treino_c1.csv:/mnt/fl_conj_treino_cliente.csv
+    --network flwr-network \
+    --detach \ 
+    flwr_clientapp:0.0.1  \
+    --insecure \
+    --clientappio-api-address supernode-1:9094 
+--------------------------------
+
+12) Adicione no arquivo pyproject.toml:
+--------------------------------
+[tool.flwr.federations.local-deployment]
+address = "127.0.0.1:9093"
+insecure = true
+--------------------------------
+
+13) Inicie a aplicação:
+--------------------------------
+flwr run . local-deployment --stream
+--------------------------------
+
+Após a conclusão do processo de FL, os arquivos Flower podem ser modificados (dados, modelos, estratégias, parâmetros de treinamento, etc). Mas, caso as dependências sejam alteradas, as imagens Docker devem ser reconstruídas. Isso consiste em: 
+1) Parar os contêineres de ServerApp e ClientApp:
+--------------------------------
+docker stop $(docker ps -a -q  --filter ancestor=flwr_clientapp:0.0.1) serverapp
+--------------------------------
+2) Reconstruir as imagens Docker:
+--------------------------------
+docker build -f clientapp.Dockerfile -t flwr_clientapp:0.0.1 . && \
+  docker build -f serverapp.Dockerfile -t flwr_serverapp:0.0.1 .
+--------------------------------
+3) Recriar os contêineres de Serverapp e Clientapp, repetindo os passos 8 e 11 (podem ser concatenados).
+4) Iniciar novamente a aplicação.
+################################
+
+Endereços Importantes
+################################
+Quickstart with Docker
+Flower Network Communication
+################################
