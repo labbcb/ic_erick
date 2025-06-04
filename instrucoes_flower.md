@@ -1,10 +1,10 @@
 # Estrutura de Diretórios
 
-`/dados_simulacao`:  3 arquivos .csv de treino e 3 arquivos .csv de validação iguais à simulação já realizada. 
-`/dados_TCGA`: 48 arquivos .csv com todos os dados de cada centro (referente aos dados TCGA).
-`/quickstart-docker`: 3 pastas: quickstart-docker (template), quickstart-docker-2 (Redes Neurais) e quickstart-docker-logreg (Regressão Logística)
-`/quickstart-docker-2` (assim como demais pastas `quickstart-docker`): arquivos clientapp.Dockerfile, serverapp.Dockerfile, pyproject.toml e fedpca.py, além da pasta com arquivos do Flower.
-`/quickstart-docker-2/quickstart_docker_2`: arquivos client_app.py, server_app.py, __init_.py, my_strategy.py, task.py.
+- `/dados_simulacao`:  3 arquivos .csv de treino e 3 arquivos .csv de validação iguais à simulação já realizada. 
+- `/dados_TCGA`: 48 arquivos .csv com todos os dados de cada centro (referente aos dados TCGA).
+- `/quickstart-docker`: 3 pastas: quickstart-docker (template), quickstart-docker-2 (Redes Neurais) e quickstart-docker-logreg (Regressão Logística)
+- `/quickstart-docker-2` (assim como demais pastas `quickstart-docker`): arquivos clientapp.Dockerfile, serverapp.Dockerfile, pyproject.toml e fedpca.py, além da pasta com arquivos do Flower.
+- `/quickstart-docker-2/quickstart_docker_2`: arquivos client_app.py, server_app.py, __init_.py, my_strategy.py, task.py.
 
 # Infra-Estrutura Docker Utilizada
 
