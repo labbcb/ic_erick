@@ -30,7 +30,8 @@ docker run --rm \
 BASE_PORT=9094  # Porta base para supernode
 for ((i=1; i<=N_CLIENTES; i++)); do
     SN_PORT=$((BASE_PORT + i - 1))  # Ex: 9094, 9095, ...
-    DATASET_PATH="/dados_simulacao/fl_conj_treino_c${i}.csv"
+    DATASET_PATH_TRAIN="/dados_simulacao/fl_conj_treino_c${i}.csv"
+    DATASET_PATH_TEST="/dados_simulacao/fl_conj_teste_c${i}.csv"
     
     # Inicia o supernode do cliente
     docker run --rm \
@@ -46,7 +47,8 @@ for ((i=1; i<=N_CLIENTES; i++)); do
 
     # Inicia o clientapp do cliente
     docker run --rm \
-        -v ${DATASET_PATH}:/mnt/fl_conj_treino_cliente.csv \
+        -v ${DATASET_PATH_TRAIN}:/mnt/fl_conj_treino_cliente.csv \
+        -v ${DATASET_PATH_TEST}:/mnt/fl_conj_teste_cliente.csv \
         --network flwr-network \
         --name client-${i} \
         --detach \
