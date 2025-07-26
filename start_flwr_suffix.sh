@@ -35,8 +35,8 @@ INDEX=1
 
 for SUFIXO in "$@"; do
     SN_PORT=$((BASE_PORT + INDEX - 1))
-    DATASET_PATH_TRAIN="/dados_simulacao/fl_conj_treino_c${SUFIXO}.csv"
-    DATASET_PATH_TEST="/dados_simulacao/fl_conj_teste_c${SUFIXO}.csv"
+    DATASET_PATH_TRAIN="/home/erick/dados_TCGA/fl_conj_treino_${SUFIXO}.csv"
+    DATASET_PATH_TEST="/home/erick/dados_TCGA/fl_conj_teste_${SUFIXO}.csv"
     
     # Testa se o arquivo existe
     if [[ ! -f "${DATASET_PATH_TRAIN}" || ! -f "${DATASET_PATH_TEST}" ]]; then

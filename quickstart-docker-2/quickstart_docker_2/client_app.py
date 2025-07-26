@@ -1,9 +1,11 @@
 """quickstart-docker-2: A Flower / PyTorch app."""
 import os
-
 from flwr.client import ClientApp, NumPyClient
 from flwr.common import Context
 from quickstart_docker_2.task import load_data, load_model
+from sklearn.metrics import confusion_matrix
+import numpy as np
+import pandas as pd
 
 # Define Flower Client and client_fn
 class FlowerClient(NumPyClient):
@@ -30,8 +32,13 @@ class FlowerClient(NumPyClient):
     def evaluate(self, parameters, config):
         self.model.set_weights(parameters)
         loss, accuracy = self.model.evaluate(self.x_test, self.y_test, verbose=0)
-        return loss, len(self.x_test), {"accuracy": accuracy}
-
+        y_pred = self.model.predict(self.x_test, verbose = 0)
+        y_pred = np.argmax(y_pred, axis = 1)
+        conf_matrix = confusion_matrix(self.y_test, y_pred, labels = ['0', '1', '2', '3'])
+        # conf_matrix = pd.DataFrame(conf_matrix, index = ['0', '1', '2', '3'], columns = ['0', '1', '2', '3'])
+        # return loss, len(self.x_test), {"00": int(conf_matrix.iat[0,0]), "01": int(conf_matrix.iat[0,1]), "02": int(conf_matrix.iat[0,2]), "03": int(conf_matrix.iat[0,3]), "10": int(conf_matrix.iat[1,0]), "11": int(conf_matrix.iat[1,1]), "12": int(conf_matrix.iat[1,2]), "13": int(conf_matrix.iat[1,3]),"20": int(conf_matrix.iat[2,0]), "21": int(conf_matrix.iat[2,1]), "22": int(conf_matrix.iat[2,2]), "23": int(conf_matrix.iat[2,3]), "30": int(conf_matrix.iat[3,0]),"31": int(conf_matrix.iat[3,1]), "32": int(conf_matrix.iat[3,2]), "33": int(conf_matrix.iat[3,3])}
+        return loss, len(self.x_test), {'accuracy': accuracy}
+        # return loss, {"conf_matrix": conf_matrix}
 
 def client_fn(context: Context):
     # Load model and data

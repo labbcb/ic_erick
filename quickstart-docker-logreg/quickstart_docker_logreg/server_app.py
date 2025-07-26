@@ -31,7 +31,7 @@ def server_fn(context: Context):
     strategy = CustomFedAvg(
         fraction_fit=1.0,
         fraction_evaluate=1.0,
-        min_available_clients=3,
+        min_available_clients=11,
         initial_parameters=initial_parameters,
         evaluate_metrics_aggregation_fn=weighted_average,
     )

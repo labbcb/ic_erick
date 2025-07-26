@@ -12,7 +12,8 @@ dependencies = [
     "flwr-datasets[vision]>=0.5.0",
     "tensorflow>=2.11.1,<2.18.0",
     "pandas",
-    "keras"
+    "keras",
+    "scikit-learn"
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -26,8 +27,8 @@ serverapp = "quickstart_docker_2.server_app:app"
 clientapp = "quickstart_docker_2.client_app:app"
 
 [tool.flwr.app.config]
-num-server-rounds = 1
-local-epochs = 1
+num-server-rounds = 5
+local-epochs = 5
 batch-size = 32
 verbose = false
 

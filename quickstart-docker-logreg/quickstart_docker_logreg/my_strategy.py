@@ -20,8 +20,8 @@ class CustomFedAvg(FedAvg):
         parameters_aggregated, metrics_aggregated = super().aggregate_fit(server_round, results, failures)
         ndarrays = parameters_to_ndarrays(parameters_aggregated)
         # numpy.concatenate(ndarrays[0], ndarrays[1])
-        model = get_model(penalty = "l2", local_epochs = 5)
+        model = get_model(penalty = "l1", local_epochs = 5)
         set_model_params(model, ndarrays)
-        model.classes_ =  np.array([i for i in range(2)])
+        model.classes_ =  np.array([i for i in range(4)])
         joblib.dump(model, 'modelo_final_logreg_sim_ic')
         return parameters_aggregated
