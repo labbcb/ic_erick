@@ -105,10 +105,11 @@ class CustomFedAvg(FedAvg):
        # }
     # return config
 
+"""
     def configure_evaluate(
         self, server_round: int, parameters: Parameters, client_manager: ClientManager
         ) -> list[tuple[ClientProxy, EvaluateIns]]:
-        """Configure the next round of evaluation."""
+        # Configure the next round of evaluation.
         # Do not configure federated evaluation if fraction eval is 0.
         if self.fraction_evaluate == 0.0:
             return []
@@ -137,7 +138,7 @@ class CustomFedAvg(FedAvg):
         results: list[tuple[ClientProxy, EvaluateRes]],
         failures: list[Union[tuple[ClientProxy, EvaluateRes], BaseException]],
         ) -> tuple[Optional[float], dict[str, Scalar]]:
-        """Aggregate evaluation losses using weighted average."""
+        # Aggregate evaluation losses using weighted average.
         
         if not results:
             return None, {}
@@ -162,6 +163,8 @@ class CustomFedAvg(FedAvg):
             log(WARNING, "No evaluate_metrics_aggregation_fn provided")
 
         return loss_aggregated, metrics_aggregated
+
+"""
 
 def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
     accuracies = [num_examples * m['accuracy'] for num_examples, m in metrics]
