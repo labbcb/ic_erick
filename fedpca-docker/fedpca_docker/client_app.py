@@ -4,6 +4,7 @@ from flwr.client import ClientApp, NumPyClient
 from flwr.common import Context, parameters_to_ndarrays
 from fedpca_docker.task import load_data, load_model
 from sklearn.metrics import confusion_matrix
+from sklearn.decomposition import TruncatedSVD, PCA
 import numpy as np
 import pandas as pd
 import json
@@ -24,15 +25,35 @@ class FlowerClient(NumPyClient):
 
         if current_round == 1:
            num_examples = len(self.x_train)
-           local_sum = json.dumps(list(np.sum(self.x_train, axis = 0)))
-           local_sum_squares = json.dumps(list(np.sum(self.x_train**2, axis = 0)))
-           return [], num_examples, {'local_sum': local_sum, 'local_sum_squares': local_sum_squares}
+           local_sum = np.sum(self.x_train, axis = 0)
+           local_sum_squares = np.sum(self.x_train**2, axis = 0)
+           return [], num_examples, {'local_sum': json.dumps(local_sum.tolist()), 'local_sum_squares': json.dumps(local_sum_squares.tolist())}
 
         elif current_round == 2:
-           global_mean = np.array(json.loads(config['global_mean']))
-           global_std = np.array(json.loads(config['global_std']))
+           num_examples = len(self.x_train)
+           a = config.keys()
+           # global_mean = np.array(json.loads(config['global_mean']))
+           # global_std = np.array(json.loads(config['global_std']))
+           global_mean, global_std = parameters_to_ndarrays(parameters)
            self.x_train = (self.x_train - global_mean) / global_std
            self.x_test = (self.x_test - global_mean) / global_std
+           k = config['k_components']
+           tsvd = TruncatedSVD(n_components = k-1, algorithm = 'arpack')
+           # pca = PCA(n_components = k-1)
+           # pca.fit(self.x_train)
+           tsvd.fit(np.array(self.x_train))
+           sv = json.dumps(tsvd.singular_values_.tolist())
+           rsv = json.dumps(tsvd.components_.tolist())
+           # sv = json.dumps(pca.singular_values_.tolist())
+           # rsv = json.dumps(pca.components_.tolist())
+           return [], num_examples, {'local_sv': sv, 'local_rsv': rsv}
+           #  return [], num_examples, {}
+
+        elif current_round == 3:
+           ap_global_sv = np.array(json.loads(config['ap_global_sv']))
+           ap_global_rsv = np.array(json.loads(config['ap_global_rsv']))
+           self.x_train = self.x_train @ ap_global_rsv.T
+           self.x_test = self.x_test @ ap_global_rsv.T
            self.model.set_weights(parameters)
            self.model.fit(
             self.x_train,
@@ -42,7 +63,6 @@ class FlowerClient(NumPyClient):
             verbose=self.verbose,
            )
            return self.model.get_weights(), len(self.x_train), {}
-
         else: 
            self.model.set_weights(parameters)
            self.model.fit(

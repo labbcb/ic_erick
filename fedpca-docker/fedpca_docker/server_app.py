@@ -7,6 +7,7 @@ from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy import FedAvg
 from fedpca_docker.task import load_model, load_data
 # from quickstart_docker_2.my_strategy import CustomFedAvg
+from sklearn.decomposition import TruncatedSVD
 import numpy as np
 import json
 
@@ -29,11 +30,38 @@ class CustomFedAvg(FedAvg):
            p1 = [(x**2)/sum(examples) for x in sum(local_sums)]
            g_var = np.array((sum(local_sums_squares) - p1) / (sum(examples) - 1))
            g_std = np.sqrt(g_var)
-           self.global_mean = json.dumps(list(g_mean))
-           self.global_std = json.dumps(list(g_std))
+           self.global_mean = json.dumps(g_mean.tolist())
+           self.global_std = json.dumps(g_std.tolist())
+           self.k_components = min(examples)
            # parameters_aggregated, metrics_aggregated = super().aggregate_fit(server_round, results, failures)
-           parameters_aggregated, metrics_aggregated = self.initial_parameters, {}
+           # parameters_aggregated, metrics_aggregated = self.initial_parameters, {}
+           parameters_aggregated, metrics_aggregated = ndarrays_to_parameters([g_mean, g_std]), {} 
            print(f"Rodada {server_round}: Calculadas médias e desvios padrões globais")
+
+        elif server_round == 2:
+           examples = [r.num_examples for _, r in results]
+           local_sv = [np.array(json.loads(r.metrics['local_sv'])) for _, r in results]
+           local_rsv = [np.array(json.loads(r.metrics['local_rsv'])) for _, r in results]
+           t_local_rsv = [x.T for x in local_rsv]
+           i = 0
+           ap_global_cov = t_local_rsv[1] @ np.diag(local_sv[1]) @ local_rsv[1]
+           """
+           for trsv, sv, rsv in zip(t_local_rsv, local_sv, local_rsv):
+               print(trsv.shape, sv.shape, rsv.shape)
+               if i == 0:
+                  ap_global_cov = (trsv @ np.diag(sv) @ rsv)              
+               else:
+                  ap_global_cov = ap_global_cov + (trsv @ np.diag(sv) @ rsv)
+               i = i + 1
+               print(f"Matriz de covariância do cliente {i}")
+           """
+           print('calculando SVD do global')
+           svd = TruncatedSVD(n_components = min(examples) - 1, algorithm = 'arpack')
+           svd.fit(ap_global_cov)
+           self.ap_global_sv = json.dumps(svd.singular_values_.tolist())
+           self.ap_global_rsv = json.dumps(svd.components_.tolist())
+           parameters_aggregated, metrics_aggregated = self.initial_parameters, {}
+           print(f"Rodada {server_round}: Calculadas sv e rsv globais")
 
         else: 
            parameters_aggregated, metrics_aggregated = super().aggregate_fit(server_round, results, failures)
@@ -55,21 +83,28 @@ class CustomFedAvg(FedAvg):
            config = {
             "current_round": server_round,
            }
-           print(f"Rodada {server_round}: Solicitação de medidas locais")
+           print(f"Rodada {server_round}: Solicitação de medidas locais (Padronização)")
         elif server_round == 2:
            config = {
             "current_round": server_round,
             "global_mean": self.global_mean,
             "global_std": self.global_std,
-            }
+            "k_components": self.k_components,
+           }
            print(f"Rodada {server_round}: Envio de médias e desvios padrão globais")
+           print(f"Rodada {server_round}: Solicitação de medidas locais (PCA/SVD)")
+        elif server_round == 3: 
+           config = {
+            "current_round": server_round,
+            "ap_global_sv": self.ap_global_sv,
+            "ap_global_rsv": self.ap_global_rsv,
+           }
+           print(f"Rodada {server_round}: Envio de sv e rsv globais")
         else:
            config = {
             "current_round": server_round,
-            "global_mean": self.global_mean,
-            "global_std": self.global_std,
            }
-
+        print(config.keys())
         fit_ins = FitIns(parameters, config)
 
         # Sample clients
