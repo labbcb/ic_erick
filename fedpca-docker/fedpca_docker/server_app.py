@@ -1,3 +1,4 @@
+
 """quickstart-docker-2: A Flower / PyTorch app."""
 
 from typing import List, Tuple, Union, Optional
@@ -22,48 +23,59 @@ class CustomFedAvg(FedAvg):
         failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
         ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
 
-        if server_round == 1:
+        if server_round == 1 and [r.metrics['pca_exist'] for _, r in results][1] == False:
+          
+           self.pca_exist = False
            examples = [r.num_examples for _, r in results]
            local_sums = [np.array(json.loads(r.metrics['local_sum'])) for _, r in results]
            local_sums_squares = [np.array(json.loads(r.metrics['local_sum_squares'])) for _, r in results]
+           # local_sums = [parameters_to_ndarrays(r.parameters)[0] for _, r in results]
+           # local_sums_squares = [parameters_to_ndarrays(r.parameters)[1] for _, r in results]
            g_mean = sum(local_sums) / sum(examples)
            p1 = [(x**2)/sum(examples) for x in sum(local_sums)]
            g_var = np.array((sum(local_sums_squares) - p1) / (sum(examples) - 1))
            g_std = np.sqrt(g_var)
+           g_std[g_std == 0] = 1
+           print(g_std.shape, g_mean.shape)
            self.global_mean = json.dumps(g_mean.tolist())
            self.global_std = json.dumps(g_std.tolist())
            self.k_components = min(examples)
            # parameters_aggregated, metrics_aggregated = super().aggregate_fit(server_round, results, failures)
-           # parameters_aggregated, metrics_aggregated = self.initial_parameters, {}
-           parameters_aggregated, metrics_aggregated = ndarrays_to_parameters([g_mean, g_std]), {} 
+           parameters_aggregated, metrics_aggregated = self.initial_parameters, {}
+           # parameters_aggregated, metrics_aggregated = ndarrays_to_parameters([g_mean, g_std]), {} 
            print(f"Rodada {server_round}: Calculadas médias e desvios padrões globais")
 
-        elif server_round == 2:
+        elif server_round == 2 and [r.metrics['pca_exist'] for _, r in results][1] == False:
+           self.pca_exist = False
            examples = [r.num_examples for _, r in results]
            local_sv = [np.array(json.loads(r.metrics['local_sv'])) for _, r in results]
            local_rsv = [np.array(json.loads(r.metrics['local_rsv'])) for _, r in results]
+           # local_sv = [parameters_to_ndarrays(r.parameters)[0] for _, r in results]
+           # local_rsv = [parameters_to_ndarrays(r.parameters)[1] for _, r in results]
            t_local_rsv = [x.T for x in local_rsv]
            i = 0
-           ap_global_cov = t_local_rsv[1] @ np.diag(local_sv[1]) @ local_rsv[1]
-           """
+           # ap_global_cov = t_local_rsv[1] @ np.diag(local_sv[1]) @ local_rsv[1]
+          
            for trsv, sv, rsv in zip(t_local_rsv, local_sv, local_rsv):
                print(trsv.shape, sv.shape, rsv.shape)
                if i == 0:
-                  ap_global_cov = (trsv @ np.diag(sv) @ rsv)              
+                  ap_global_cov = (trsv @ np.diag(sv) @ rsv)
                else:
                   ap_global_cov = ap_global_cov + (trsv @ np.diag(sv) @ rsv)
                i = i + 1
                print(f"Matriz de covariância do cliente {i}")
-           """
+           
            print('calculando SVD do global')
            svd = TruncatedSVD(n_components = min(examples) - 1, algorithm = 'arpack')
            svd.fit(ap_global_cov)
            self.ap_global_sv = json.dumps(svd.singular_values_.tolist())
            self.ap_global_rsv = json.dumps(svd.components_.tolist())
            parameters_aggregated, metrics_aggregated = self.initial_parameters, {}
+           # parameters_aggregated, metrics_aggregated = ndarrays_to_parameters([svd.singular_values_, svd.components_]), {}
            print(f"Rodada {server_round}: Calculadas sv e rsv globais")
 
         else: 
+           self.pca_exist = True
            parameters_aggregated, metrics_aggregated = super().aggregate_fit(server_round, results, failures)
            ndarrays = parameters_to_ndarrays(parameters_aggregated)
            model = load_model()
@@ -84,7 +96,7 @@ class CustomFedAvg(FedAvg):
             "current_round": server_round,
            }
            print(f"Rodada {server_round}: Solicitação de medidas locais (Padronização)")
-        elif server_round == 2:
+        elif server_round == 2  and self.pca_exist == False:
            config = {
             "current_round": server_round,
             "global_mean": self.global_mean,
@@ -93,7 +105,7 @@ class CustomFedAvg(FedAvg):
            }
            print(f"Rodada {server_round}: Envio de médias e desvios padrão globais")
            print(f"Rodada {server_round}: Solicitação de medidas locais (PCA/SVD)")
-        elif server_round == 3: 
+        elif server_round == 3 and self.pca_exist == False: 
            config = {
             "current_round": server_round,
             "ap_global_sv": self.ap_global_sv,

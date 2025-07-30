@@ -31,9 +31,11 @@ def load_model():
 def load_model():
     model = keras.Sequential(
         [
-            keras.Input(shape=(60660,)),
-            layers.Dense(20, activation='relu', kernel_regularizer = regularizers.L1(1e-1)),
-            layers.Dense(20, activation='relu', kernel_regularizer = regularizers.L1(1e-1)),
+            keras.Input(shape=(23,)),
+            layers.Dense(16, activation='relu'),
+            layers.Dense(16, activation='relu'),
+#            layers.Dense(20, activation='relu', kernel_regularizer = regularizers.L1(1e-1)),
+#            layers.Dense(20, activation='relu', kernel_regularizer = regularizers.L1(1e-1)),
             layers.Dense(4, activation="softmax"),
         ]
     )
@@ -41,10 +43,16 @@ def load_model():
     return(model)
 
 def load_data():
-    dados_treino = pd.read_csv("/mnt/fl_conj_treino_cliente.csv")
-    dados_teste = pd.read_csv("/mnt/fl_conj_teste_cliente.csv")
-    x_train, y_train = dados_treino.iloc[:,5:], dados_treino['subtipo2']
-    x_test, y_test = dados_teste.iloc[:,5:], dados_teste['subtipo2']
+    if os.path.exists("/app/x_train_pca.csv"):
+       x_train = pd.read_csv("/app/x_train_pca.csv", header = None)
+       x_test = pd.read_csv("/app/x_test_pca.csv", header = None)
+       y_train = pd.read_csv("/mnt/fl_conj_treino_cliente.csv")['subtipo2']
+       y_test = pd.read_csv("/mnt/fl_conj_teste_cliente.csv")['subtipo2']
+    else:
+       dados_treino = pd.read_csv("/mnt/fl_conj_treino_cliente.csv")
+       dados_teste = pd.read_csv("/mnt/fl_conj_teste_cliente.csv")
+       x_train, y_train = dados_treino.iloc[:,5:], dados_treino['subtipo2']
+       x_test, y_test = dados_teste.iloc[:,5:], dados_teste['subtipo2']
     ee = LabelEncoder()
     y_train = ee.fit_transform(y_train)
     y_test = ee.transform(y_test)
