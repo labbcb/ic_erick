@@ -4,6 +4,7 @@
 from typing import List, Tuple
 from flwr.common import Context, ndarrays_to_parameters, Metrics
 from flwr.server import ServerApp, ServerAppComponents, ServerConfig
+from flwr.server.strategy import FedAvg
 from quickstart_docker_logreg.task import get_model, get_model_params, set_initial_params
 from quickstart_docker_logreg.my_strategy import CustomFedAvg
 

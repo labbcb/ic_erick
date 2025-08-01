@@ -66,7 +66,6 @@ def set_initial_params(model):
     n_classes = 4
     n_features = 60660
     model.classes_ = np.array([i for i in range(4)])
-
     model.coef_ = np.zeros((n_classes, n_features))
     if model.fit_intercept:
         model.intercept_ = np.zeros((n_classes,))

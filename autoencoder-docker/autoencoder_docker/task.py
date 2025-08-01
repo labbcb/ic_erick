@@ -3,7 +3,7 @@
 
 import os
 
-import numpy as np
+
 import keras
 from keras import layers
 from keras import regularizers
@@ -11,7 +11,6 @@ from flwr_datasets import FederatedDataset
 from flwr_datasets.partitioner import IidPartitioner
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
-from sklearn.linear_model import LogisticRegression
 
 # Make TensorFlow log less verbose
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -33,14 +32,14 @@ def load_model():
     model = keras.Sequential(
         [
             keras.Input(shape=(23,)),
-            layers.Dense(4, activation='relu'),
             layers.Dense(16, activation='relu'),
-            #layers.Dense(20, activation='relu', kernel_regularizer = regularizers.L1(1e-2)),
-            #layers.Dense(20, activation='relu', kernel_regularizer = regularizers.L1(1e-2)),
+            layers.Dense(16, activation='relu'),
+#            layers.Dense(20, activation='relu', kernel_regularizer = regularizers.L1(1e-1)),
+#            layers.Dense(20, activation='relu', kernel_regularizer = regularizers.L1(1e-1)),
             layers.Dense(4, activation="softmax"),
         ]
     )
-    model.compile(keras.optimizers.SGD(learning_rate = 1e-1), "sparse_categorical_crossentropy", metrics=["accuracy"])
+    model.compile("SGD", "sparse_categorical_crossentropy", metrics=["accuracy"])
     return(model)
 
 def load_data():
@@ -60,41 +59,13 @@ def load_data():
 
     return x_train, y_train, x_test, y_test
 
-def get_model(penalty: str, local_epochs: int):
+'''
+def load_data():
+    dados_treino = pd.read_csv("/mnt/fl_conj_treino_cliente.csv")
+    dados_teste = pd.read_csv("/mnt/fl_conj_valid_cliente.csv")
+    x_train, y_train = dados_treino[['x1', 'x2']], dados_treino['Resposta']
+    x_test, y_test = dados_teste[['x1', 'x2']], dados_teste['Resposta']
 
-    return LogisticRegression(
-        penalty=penalty,
-        max_iter=local_epochs,
-        warm_start=True, 
-        random_state = 1,
-        solver = 'saga',
-        C = 1
-    )
+    return x_train, y_train, x_test, y_test
 
-
-def get_model_params(model):
-    if model.fit_intercept:
-        params = [
-            model.coef_,
-            model.intercept_,
-        ]
-    else:
-        params = [model.coef_]
-    return params
-
-
-def set_model_params(model, params):
-    model.coef_ = params[0]
-    if model.fit_intercept:
-        model.intercept_ = params[1]
-    return model
-
-
-def set_initial_params(model):
-    n_classes = 4
-    n_features = 23
-   
-    model.classes_ = np.array([i for i in range(n_classes)])
-    model.coef_ = np.zeros((n_classes, n_features))
-    if model.fit_intercept:
-        model.intercept_ = np.zeros((n_classes,))
+'''
