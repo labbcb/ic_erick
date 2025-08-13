@@ -23,9 +23,9 @@ class CustomFedAvg(FedAvg):
         failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
         ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
 
-        if server_round == 1 and [r.metrics['pca_exist'] for _, r in results] == [False]*len(results):
-           print('DADOS TRANSFORMADOS NÃO ENCONTRADOS, SERÃO REALIZADAS RODADAS DE PRÉ-PROCESSAMENTO')
-           self.pca_exist = False
+        if server_round == 1 and [r.metrics['pre_processamento'] for _, r in results] == ['Yes']*len(results):
+           print('SERÃO REALIZADAS RODADAS DE PRÉ-PROCESSAMENTO')
+           print('RECEBIDAS MÉDIAS E DESVIOS PADRÃO LOCAIS')
            examples = [r.num_examples for _, r in results]
            local_sums = [np.array(json.loads(r.metrics['local_sum'])) for _, r in results]
            local_sums_squares = [np.array(json.loads(r.metrics['local_sum_squares'])) for _, r in results]
@@ -44,44 +44,64 @@ class CustomFedAvg(FedAvg):
            self.global_std = json.dumps(g_std.tolist())
            self.k_components = min(examples)
            parameters_aggregated, metrics_aggregated = self.initial_parameters, {}
+           self.tipo_dados = [r.metrics['tipo_dados'] for _, r in results][0]
+           self.pre_processamento = [r.metrics['pre_processamento'] for _, r in results][0]
            print(f"RODADA {server_round}: CALCULADAS MÉDIAS E DESVIOS PADRÕES GLOBAIS")
 
-        elif server_round == 2 and [r.metrics['pca_exist'] for _, r in results][1] == False:
-           self.pca_exist = False
-           examples = [r.num_examples for _, r in results]
-           local_sv = [np.array(json.loads(r.metrics['local_sv'])) for _, r in results]
-           local_rsv = [np.array(json.loads(r.metrics['local_rsv'])) for _, r in results]
-           t_local_rsv = [x.T for x in local_rsv]
-           i = 0
-           for trsv, sv, rsv in zip(t_local_rsv, local_sv, local_rsv):
-               print(trsv.shape, sv.shape, rsv.shape)
-               if i == 0:
-                  ap_global_cov = (trsv @ np.diag(sv) @ rsv)
-               else:
-                  ap_global_cov = ap_global_cov + (trsv @ np.diag(sv) @ rsv)
-               i = i + 1
-               print(f"CALCULADA MATRIZ DE COVARIÂNCIA APROXIMADA DO {i}º CLIENTE")
-           
-           print('CALCULANDO SVD GLOBAL APROXIMADA')
-           svd = TruncatedSVD(n_components = min(examples) - 1, algorithm = 'arpack')
-           svd.fit(ap_global_cov)
-           self.ap_global_sv = json.dumps(svd.singular_values_.tolist())
-           self.ap_global_rsv = json.dumps(svd.components_.tolist())
-           parameters_aggregated, metrics_aggregated = self.initial_parameters, {}
-           print(f"Rodada {server_round}: CALCULADOS SV E RSV GLOBAIS")
+        elif server_round == 2 and [r.metrics['pre_processamento'] for _, r in results] == ['Yes']*len(results):
+           self.preprocessing = 'Yes'
+           if [r.metrics['tipo_dados'] for _, r in results] == ['fedpca']*len(results):
+              self.tipo_dados = 'fedpca'
+              examples = [r.num_examples for _, r in results]
+              local_sv = [np.array(json.loads(r.metrics['local_sv'])) for _, r in results]
+              local_rsv = [np.array(json.loads(r.metrics['local_rsv'])) for _, r in results]
+              t_local_rsv = [x.T for x in local_rsv]
+              i = 0
+              for trsv, sv, rsv in zip(t_local_rsv, local_sv, local_rsv):
+                  print(trsv.shape, sv.shape, rsv.shape)
+                  if i == 0:
+                     ap_global_cov = (trsv @ np.diag(sv) @ rsv)
+                  else:
+                     ap_global_cov = ap_global_cov + (trsv @ np.diag(sv) @ rsv)
+                  i = i + 1
+                  print(f"CALCULADA MATRIZ DE COVARIÂNCIA APROXIMADA DO {i}º CLIENTE")
+              print('CALCULANDO SVD GLOBAL APROXIMADA')
+              svd = TruncatedSVD(n_components = min(examples) - 1, algorithm = 'arpack')
+              svd.fit(ap_global_cov)
+              np.save('g_components_ap',svd.components_)
+              self.ap_global_sv = json.dumps(svd.singular_values_.tolist())
+              self.ap_global_rsv = json.dumps(svd.components_.tolist())
+              parameters_aggregated, metrics_aggregated = self.initial_parameters, {}
+              print(f"Rodada {server_round}: CALCULADOS SV E RSV GLOBAIS")
+           elif [r.metrics['tipo_dados'] for _, r in results] == ['autoencoder']*len(results):
+              self.tipo_dados = 'autoencoder'
+              parameters_aggregated, metrics_aggregated = super().aggregate_fit(server_round, results, failures)
+              ndarrays = parameters_to_ndarrays(parameters_aggregated)
+              autoencoder = load_autoencoder_model()
+              autoencoder.set_weights(ndarrays)
+              autoencoder.save(filepath='autoencoder_docker_testando.keras')
 
+        elif 3 <= server_round <= 6 and [r.metrics['tipo_dados'] for _, r in results] == ['autoencoder']*len(results) and [r.metrics['pre_processamento'] for _, r in results] == ['Yes']*len(results):
+              self.tipo_dados, self.pre_processamento = 'autoencoder', 'Yes'
+              parameters_aggregated, metrics_aggregated = super().aggregate_fit(server_round, results, failures)
+              ndarrays = parameters_to_ndarrays(parameters_aggregated)
+              autoencoder = load_autoencoder_model()
+              autoencoder.set_weights(ndarrays)
+              autoencoder.save(filepath='autoencoder_docker_testando.keras')
+        
         else: 
-           if server_round == 1 and [r.metrics['pca_exist'] for _, r in results][1] == True:
-              print('DADOS TRANSFORMADOS ENCONTRADOS, NÃO SERÃO REALIZADAS RODADAS DE PRÉ-PROCESSAMENTO')
-           self.pca_exist = True
+           if server_round == 1 and [r.metrics['pre_processamento'] for _, r in results] == ['No']*len(results):
+              print('NÃO SERÃO REALIZADAS RODADAS DE PRÉ-PROCESSAMENTO')
+           self.tipo_dados = [r.metrics['tipo_dados'] for _, r in results][0]
+           self.pre_processamento = [r.metrics['pre_processamento'] for _, r in results][0]
            parameters_aggregated, metrics_aggregated = super().aggregate_fit(server_round, results, failures)
            ndarrays = parameters_to_ndarrays(parameters_aggregated)
-           if [r.metrics['metodo'] for _, r in results][1] == 'Rede Neural': 
+           if [r.metrics['metodo'] for _, r in results] == ['Rede Neural']*len(results): 
               print('MODELO DE REDE NEURAL')
               model = load_model()
               model.set_weights(ndarrays)
               model.save(filepath='modelo_docker_testando.keras')
-           if [r.metrics['metodo'] for _, r in results][1] == 'Regressão Logística':
+           if [r.metrics['metodo'] for _, r in results] == ['Regressão Logística']*len(results):
               print("MODELO DE REGRESSÃO LOGÍSTICA")
               #model = get_model(penalty = penalty, local_epochs = epochs)
               #set_model_params(model, ndarrays)
@@ -107,16 +127,24 @@ class CustomFedAvg(FedAvg):
             "current_round": server_round,
            }
            print(f"RODADA {server_round}: SOLICITAÇÃO DE MEDIDAS LOCAIS (PADRONIZAÇÂO)")
-        elif server_round == 2  and self.pca_exist == False:
-           config = {
-            "current_round": server_round,
-            "global_mean": self.global_mean,
-            "global_std": self.global_std,
-            "k_components": self.k_components,
-           }
-           print(f"Rodada {server_round}: ENVIO DE MÉDIAS E DESVIOS PADRÃO GLOBAIS")
-           print(f"Rodada {server_round}: SOLICITAÇÃO DE MEDIDAS LOCAIS (PCA/SVD)")
-        elif server_round == 3 and self.pca_exist == False: 
+        elif server_round == 2  and self.pre_processamento == 'Yes':
+           if self.tipo_dados == 'fedpca':
+              config = {
+               "current_round": server_round,
+               "global_mean": self.global_mean,
+               "global_std": self.global_std,
+               "k_components": self.k_components,
+              }
+              print(f"Rodada {server_round}: ENVIO DE MÉDIAS E DESVIOS PADRÃO GLOBAIS")
+              print(f"Rodada {server_round}: SOLICITAÇÃO DE MEDIDAS LOCAIS (PCA/SVD)")
+           elif self.tipo_dados == 'autoencoder':
+              config = {
+               "current_round": server_round,
+               "global_mean": self.global_mean,
+               "global_std": self.global_std,
+              }
+              print(f"Rodada {server_round}: ENVIO DE MÉDIAS E DESVIOS PADRÃO GLOBAIS")       
+        elif server_round == 3 and self.tipo_dados == 'fedpca' and self.pre_processamento == 'Yes': 
            config = {
             "current_round": server_round,
             "ap_global_sv": self.ap_global_sv,
@@ -221,12 +249,14 @@ def server_fn(context: Context):
     elif metodo == 'Regressão Logística':
        # Create LogisticRegression Model
        penalty = context.run_config["penalty"]
-       local_epochs = context.run_config["local-epochs"]
-       model = get_model(penalty, local_epochs)
+       C = context.run_config['C']
+       solver = context.run_config['solver']
+       max_iter = context.run_config["max_iter"]
+       model = get_model(penalty = penalty, C = C, solver = solver, max_iter = max_iter)
        # Setting initial parameters, akin to model.compile for keras models
        set_initial_params(model)
        initial_parameters = ndarrays_to_parameters(get_model_params(model))
-    
+ 
     # Define strategy
     strategy = CustomFedAvg(
         fraction_fit = 1.0,

@@ -14,6 +14,7 @@ dependencies = [
     "pandas",
     "keras",
     "scikit-learn",
+    "imblearn"
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -27,13 +28,26 @@ serverapp = "fedpca_docker.server_app:app"
 clientapp = "fedpca_docker.client_app:app"
 
 [tool.flwr.app.config]
-num-server-rounds = 5
-local-epochs = 2
+# Número de rodadas deve levar em consideração as possíveis rodadas de pré-processamento
+num-server-rounds = 6
+pre_processamento = 'No'
+tipo_dados = 'fedpca'
+metodo = 'Rede Neural'
+oversample = 'No'
+# Parâmetros do Autoencoder
+input-size = 60660
+encoded-size = 300
+ac-epochs = 5
+ac-batch-size = 32
+# Parâmetros da função de Regressão Logística
+penalty = 'l2'
+C = 0.5
+solver = 'saga'
+max_iter = 5
+# Parâmetros da função de Rede Neural
+epochs = 5
 batch-size = 32
 verbose = false
-metodo = 'Rede Neural'
-penalty = 'l1'
-
 [tool.flwr.federations.local-deployment]
 address = "127.0.0.1:9093"
 insecure = true
