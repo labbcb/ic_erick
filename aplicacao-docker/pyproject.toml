@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aplicacao-docker"
+version = "1.0.0"
+description = ""
+license = "Apache-2.0"
+dependencies = [
+    "flwr[simulation]>=1.17.0",
+    "flwr-datasets[vision]>=0.5.0",
+    "tensorflow>=2.11.1,<2.18.0",
+    "pandas",
+    "keras",
+    "scikit-learn",
+    "imblearn"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
+
+[tool.flwr.app]	
+publisher = "flower"
+
+[tool.flwr.app.components]
+serverapp = "aplicacao_docker.server_app:app"
+clientapp = "aplicacao_docker.client_app:app"
+
+[tool.flwr.app.config]
+# Algoritmos: AP-COV e Autoencoder (pré-preprocessamento), Rede Neural e Regressão Logística (Classificação)
+algoritmo = 'Rede Neural'
+# Se for AP-COV, número de rodadas deve ser igual a 3
+num-server-rounds = 3
+# Tipo dos dados necessário apenas para algoritmos de classificação 
+tipo_dados = 'Autoencoder'
+# Geração de amostras sintéticas. Se forem algoritmos de pré-processamento, opção true salva com e sem oversample.
+oversample = true
+# Quantia de variáveis depende dos dados utilizados. Se AP-COV, 23 (tamanho mínimo entre os clientes - 1). Se Autoencoder, igual ao encoded-size.
+n_variaveis = 10
+# Quantia de classes. Nesses dados, são 4.
+n_classes = 4
+# Parâmetros do Autoencoder
+input_size = 60660
+encoded_size = 10
+ac_epochs = 5
+ac_batch_size = 32
+# Parâmetros da função de Rede Neural
+epochs = 10
+batch_size = 32
+verbose = false
+# Parâmetros da função de Regressão Logística
+penalty = 'l2'
+C = 0.5
+solver = 'saga'
+max_iter = 2
+[tool.flwr.federations.local-deployment]
+address = "127.0.0.1:9093"
+insecure = true
