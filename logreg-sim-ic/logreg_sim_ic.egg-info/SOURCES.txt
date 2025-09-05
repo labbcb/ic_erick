@@ -1,0 +1,12 @@
+README.md
+pyproject.toml
+logreg_sim_ic/__init__.py
+logreg_sim_ic/client_app.py
+logreg_sim_ic/my_strategy.py
+logreg_sim_ic/server_app.py
+logreg_sim_ic/task.py
+logreg_sim_ic.egg-info/PKG-INFO
+logreg_sim_ic.egg-info/SOURCES.txt
+logreg_sim_ic.egg-info/dependency_links.txt
+logreg_sim_ic.egg-info/requires.txt
+logreg_sim_ic.egg-info/top_level.txt

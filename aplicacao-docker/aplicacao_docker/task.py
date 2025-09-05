@@ -43,8 +43,8 @@ def load_autoencoder_model(input_size: int, encoded_size: int):
     model = keras.Sequential(
         [
             keras.Input(shape=(input_size,), name = 'input'),
-            layers.Dense(encoded_size, activation='relu', name = 'bn', kernel_regularizer = regularizers.L1(1e-2), kernel_initializer = keras.initializers.GlorotUniform(seed=1)),
-            layers.Dense(input_size, activation="sigmoid", name = 'output', kernel_initializer = keras.initializers.GlorotUniform(seed=1)),
+            layers.Dense(encoded_size, activation='relu', name = 'bn', kernel_regularizer = regularizers.L1(1e-2), kernel_initializer = keras.initializers.GlorotUniform(seed=1), bias_initializer = 'zeros'),
+            layers.Dense(input_size, activation="sigmoid", name = 'output', kernel_initializer = keras.initializers.GlorotUniform(seed=1), bias_initializer = 'zeros'),
         ]
     )
     model.compile(keras.optimizers.SGD(learning_rate = 1e-2), loss = 'mse')

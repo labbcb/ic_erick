@@ -10,6 +10,7 @@ dependencies = [
     "flwr[simulation]>=1.15.2",
 #    "flwr-datasets[vision]>=0.5.0",
     "scikit-learn==1.4.2",
+    "tensorflow"
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -22,7 +23,7 @@ publisher = "erick"
 serverapp = "logreg_sim_ic.server_app:app"
 clientapp = "logreg_sim_ic.client_app:app"
 [tool.flwr.app.config]
-num-server-rounds = 5
+num-server-rounds = 8
 penalty = "l2"
 local-epochs = 1
 

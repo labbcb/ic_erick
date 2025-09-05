@@ -1,4 +1,16 @@
 """neural-sim-ic: A Flower / TensorFlow app."""
+# Reprodutibilidade
+import random
+random.seed(1)
+import numpy as np
+np.random.seed(1)
+import tensorflow as tf
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.experimental.enable_op_determinism()
+tf.random.set_seed(1)
+
+import os
 
 from flwr.client import NumPyClient, ClientApp
 from flwr.common import Context
@@ -9,13 +21,14 @@ from neural_sim_ic.task import load_data, load_model
 # Define Flower Client and client_fn
 class FlowerClient(NumPyClient):
     def __init__(
-        self, model, data, epochs, batch_size, verbose
+        self, model, data, epochs, batch_size, verbose, context
     ):
         self.model = model
         self.x_train, self.y_train, self.x_test, self.y_test = data
         self.epochs = epochs
         self.batch_size = batch_size
         self.verbose = verbose
+        self.context = context
 
     def fit(self, parameters, config):
         self.model.set_weights(parameters)
@@ -26,7 +39,7 @@ class FlowerClient(NumPyClient):
             batch_size=self.batch_size,
             verbose=self.verbose,
         )
-        return self.model.get_weights(), len(self.x_train), {}
+        return self.model.get_weights(), len(self.x_train), {'partition-id': self.context.node_config['partition-id']}
 
     def evaluate(self, parameters, config):
         self.model.set_weights(parameters)
@@ -47,7 +60,7 @@ def client_fn(context: Context):
 
     # Return Client instance
     return FlowerClient(
-        net, data, epochs, batch_size, verbose
+        net, data, epochs, batch_size, verbose, context
     ).to_client()
 
 

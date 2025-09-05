@@ -1,4 +1,14 @@
 """neural-sim-ic: A Flower / TensorFlow app."""
+# Reprodutibilidade
+import random
+random.seed(1)
+import numpy as np
+np.random.seed(1)
+import tensorflow as tf
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.experimental.enable_op_determinism()
+tf.random.set_seed(1)
 
 from typing import List, Tuple
 from flwr.common import Context, ndarrays_to_parameters, Metrics

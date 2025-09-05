@@ -1,6 +1,15 @@
 """logreg-sim-ic: A Flower / sklearn app."""
-
+# Reprodutibilidade
+import random
+random.seed(1)
 import numpy as np
+np.random.seed(1)
+import tensorflow as tf
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.experimental.enable_op_determinism()
+tf.random.set_seed(1)
+
 from flwr_datasets import FederatedDataset
 from flwr_datasets.partitioner import IidPartitioner
 from sklearn.linear_model import LogisticRegression
@@ -11,32 +20,14 @@ fds = None  # Cache FederatedDataset
 
 def load_data(partition_id: int, num_partitions: int):
     """Load partition MNIST data."""
-    # Only initialize `FederatedDataset` once
-    global fds
-    if fds is None:
-        # dados_treino = pd.read_csv("C:/Users/erick/Downloads/jupyter_arquivos/Dados_Simulados_IC_Treino.csv")
-        # dados_teste = pd.read_csv("C:/Users/erick/Downloads/jupyter_arquivos/Dados_Simulados_IC_Teste.csv")
-        # dados_treino = pd.read_csv("C:/Users/erick/Downloads/jupyter_arquivos/Dados_Simulados_IC_Treino_FL.csv")
-        # dados_teste = pd.read_csv("C:/Users/erick/Downloads/jupyter_arquivos/Dados_Simulados_IC_Validacao_FL.csv")
-        dados_treino = pd.read_csv("C:/Users/erick/IC_S_fl_conj_treino_total.csv")
-        dados_teste = pd.read_csv("C:/Users/erick/IC_S_fl_conj_valid_total.csv")
-        # partitioner = IidPartitioner(num_partitions=num_partitions)
-        # fds = FederatedDataset(
-        #     dataset="mnist",
-        #     partitioners={"train": partitioner},
-        # )
+    dados_treino = pd.read_csv("~/ic_erick/dados_simulacao/IC_S_fl_conj_treino_total.csv")
+    dados_teste = pd.read_csv("~/ic_erick/dados_simulacao/IC_S_fl_conj_valid_total.csv")
     # Junção dos dados para treino após seleção de hiperparâmetros
     dados_treino = pd.concat([dados_treino, dados_teste])
     dataset_treino = dados_treino[dados_treino['Cliente'] == (partition_id + 1)]
     dataset_teste = dados_teste[dados_teste['Cliente'] == (partition_id + 1)]
-    # dataset = fds.load_partition(partition_id, "train").with_format("numpy")
     X_train, y_train = dataset_treino[['x1', 'x2']], dataset_treino['Resposta']
     X_test, y_test = dataset_teste[['x1', 'x2']], dataset_teste['Resposta']
-    # X, y = dataset["image"].reshape((len(dataset), -1)), dataset["label"]
-
-    # Split the on edge data: 80% train, 20% test 70:30
-    # X_train, X_test = X[: int(0.7 * len(X))], X[int(0.7 * len(X)) :]
-    # y_train, y_test = y[: int(0.7 * len(y))], y[int(0.7 * len(y)) :]
 
     return X_train, X_test, y_train, y_test
 
@@ -70,7 +61,7 @@ def set_model_params(model, params):
 
 
 def set_initial_params(model):
-    n_classes = 2  # MNIST has 10 classes
+    n_classes = 2  
     n_features = 2  # Number of features in dataset
     model.classes_ = np.array([i for i in range(2)])
 

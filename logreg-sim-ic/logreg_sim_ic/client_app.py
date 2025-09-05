@@ -1,5 +1,14 @@
 """logreg-sim-ic: A Flower / sklearn app."""
-
+# Reprodutibilidade
+import random
+random.seed(1)
+import numpy as np
+np.random.seed(1)
+import tensorflow as tf
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.experimental.enable_op_determinism()
+tf.random.set_seed(1)
 import warnings
 
 from sklearn.metrics import log_loss
@@ -16,12 +25,13 @@ from logreg_sim_ic.task import (
 
 
 class FlowerClient(NumPyClient):
-    def __init__(self, model, X_train, X_test, y_train, y_test):
+    def __init__(self, model, X_train, X_test, y_train, y_test, context):
         self.model = model
         self.X_train = X_train
         self.X_test = X_test
         self.y_train = y_train
         self.y_test = y_test
+        self.context = context
 
     def fit(self, parameters, config):
         set_model_params(self.model, parameters)
@@ -31,7 +41,7 @@ class FlowerClient(NumPyClient):
             warnings.simplefilter("ignore")
             self.model.fit(self.X_train, self.y_train)
 
-        return get_model_params(self.model), len(self.X_train), {}
+        return get_model_params(self.model), len(self.X_train), {'partition-id': self.context.node_config['partition-id']}
 
     def evaluate(self, parameters, config):
         set_model_params(self.model, parameters)
@@ -56,7 +66,7 @@ def client_fn(context: Context):
     # Setting initial parameters, akin to model.compile for keras models
     set_initial_params(model)
 
-    return FlowerClient(model, X_train, X_test, y_train, y_test).to_client()
+    return FlowerClient(model, X_train, X_test, y_train, y_test, context).to_client()
 
 
 # Flower ClientApp
