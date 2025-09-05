@@ -25,7 +25,7 @@ def load_model():
             keras.Input(shape=(2,)),
             layers.Dense(100, activation='relu', kernel_initializer = keras.initializers.GlorotUniform(seed=1), bias_initializer = 'zeros'),
             #layers.Dense(300, activation='relu', kernel_initializer = keras.initializers.GlorotUniform(seed=1), bias_initializer = 'zeros'),
-            layers.Dense(1, activation="sigmoid"),
+            layers.Dense(1, activation="sigmoid", kernel_initializer = keras.initializers.GlorotUniform(seed=1), bias_initializer = 'zeros'),
         ]
     )
     model.compile("SGD", "binary_crossentropy", metrics=["accuracy"])
