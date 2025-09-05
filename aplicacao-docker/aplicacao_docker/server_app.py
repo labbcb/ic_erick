@@ -1,4 +1,16 @@
 """quickstart-docker-2: A Flower / PyTorch app."""
+import os
+
+# Reprodutibilidade
+import random
+random.seed(1)
+import numpy as np
+np.random.seed(1)
+import tensorflow as tf
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.experimental.enable_op_determinism()
+tf.random.set_seed(1)
 
 from typing import List, Tuple, Union, Optional
 from flwr.common import Context, ndarrays_to_parameters, Metrics, FitRes, Parameters, Scalar, parameters_to_ndarrays, FitIns, EvaluateIns, EvaluateRes
@@ -6,11 +18,11 @@ from flwr.server import ServerApp, ServerAppComponents, ServerConfig, ClientMana
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy import FedAvg
 from flwr.server.strategy.aggregate import aggregate, weighted_loss_avg
-from fedpca_docker.task import load_data, load_model, get_model, get_model_params, set_initial_params, set_model_params, load_autoencoder_model
+from aplicacao_docker.task import load_data, load_model, get_model, get_model_params, set_initial_params, set_model_params, load_autoencoder_model
 from sklearn.decomposition import TruncatedSVD
-import numpy as np
 import json
 import joblib
+import keras
 
 class CustomFedAvg(FedAvg):
     def __init__(self, context, *args, **kwargs):
@@ -23,7 +35,8 @@ class CustomFedAvg(FedAvg):
         results: list[tuple[ClientProxy, FitRes]],
         failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
         ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
-
+        results.sort(key=lambda x: x[1].metrics['client_id'])
+        print([r.num_examples for _, r in results])
         if self.context.run_config['algoritmo'] == 'AP-COV':
            if server_round == 1:
               examples = [r.num_examples for _, r in results]
@@ -282,6 +295,9 @@ class CustomFedAvg(FedAvg):
         # Do not aggregate if there are failures and failures are not accepted
         if not self.accept_failures and failures:
             return None, {}
+
+        results.sort(key=lambda x: x[1].num_examples)
+
         if self.context.run_config['algoritmo'] == 'AP-COV':
            return -1.0, {}
         elif self.context.run_config['algoritmo'] == 'Autoencoder':
@@ -349,7 +365,7 @@ def server_fn(context: Context):
     # Read from config
     num_rounds = context.run_config["num-server-rounds"]
     # Initialize model parameters
-    if context.run_config['algoritmo'] == 'Rede Neural':
+    if context.run_config['algoritmo'] == 'Rede Neural' or context.run_config['algoritmo'] == 'Autoencoder':
        initial_parameters = ndarrays_to_parameters(load_model(n_variaveis = context.run_config['n_variaveis']).get_weights())
     elif context.run_config['algoritmo'] == 'Regressão Logística':
        # Create LogisticRegression Model
@@ -370,7 +386,6 @@ def server_fn(context: Context):
         context = context,
         fraction_fit = 1.0,
         fraction_evaluate = 1.0,
-        min_available_clients = 11,
         initial_parameters = initial_parameters,
     )
     config = ServerConfig(num_rounds=num_rounds)

@@ -22,6 +22,7 @@ docker run --rm \
 
 # Inicia o Serverapp (único)
 docker run --rm \
+    -e PYTHONHASHSEED=0 -e TF_DETERMINISTIC_OPS=1 \
     --network flwr-network \
     --name serverapp \
     --detach \
@@ -50,6 +51,7 @@ for SUFIXO in "$@"; do
 
     # Inicia o supernode do hospital
     docker run --rm \
+        -e PYTHONHASHSEED=0 -e TF_DETERMINISTIC_OPS=1 \
         -p ${SN_PORT}:${SN_PORT} \
         --network flwr-network \
         --name supernode-${SUFIXO} \
@@ -62,6 +64,7 @@ for SUFIXO in "$@"; do
 
     # Inicia o clientapp do hospital
     docker run --rm \
+        -e PYTHONHASHSEED=0 -e TF_DETERMINISTIC_OPS=1 -e CLIENT_ID=${INDEX} \
         -v ${DATASET_PATH_TRAIN}:/mnt/fl_conj_treino_cliente.csv \
         -v ${DATASET_PATH_VALID}:/mnt/fl_conj_valid_cliente.csv \
         --network flwr-network \

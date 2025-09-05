@@ -31,19 +31,19 @@ clientapp = "aplicacao_docker.client_app:app"
 # Algoritmos: AP-COV e Autoencoder (pré-preprocessamento), Rede Neural e Regressão Logística (Classificação)
 algoritmo = 'Rede Neural'
 # Se for AP-COV, número de rodadas deve ser igual a 3
-num-server-rounds = 3
+num-server-rounds = 7
 # Tipo dos dados necessário apenas para algoritmos de classificação 
 tipo_dados = 'Autoencoder'
 # Geração de amostras sintéticas. Se forem algoritmos de pré-processamento, opção true salva com e sem oversample.
 oversample = true
 # Quantia de variáveis depende dos dados utilizados. Se AP-COV, 23 (tamanho mínimo entre os clientes - 1). Se Autoencoder, igual ao encoded-size.
-n_variaveis = 10
-# Quantia de classes. Nesses dados, são 4.
+n_variaveis = 30
+# Quantia de classes
 n_classes = 4
 # Parâmetros do Autoencoder
 input_size = 60660
-encoded_size = 10
-ac_epochs = 5
+encoded_size = 30
+ac_epochs = 15
 ac_batch_size = 32
 # Parâmetros da função de Rede Neural
 epochs = 10

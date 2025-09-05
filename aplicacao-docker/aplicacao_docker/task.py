@@ -3,7 +3,17 @@
 
 import os
 
+# Reprodutibilidade
+import random
+random.seed(1)
 import numpy as np
+np.random.seed(1)
+import tensorflow as tf
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
+tf.config.experimental.enable_op_determinism()
+tf.random.set_seed(1)
+
 import keras
 from keras import layers
 from keras import regularizers
@@ -12,7 +22,6 @@ from flwr_datasets.partitioner import IidPartitioner
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.linear_model import LogisticRegression
-
 # Make TensorFlow log less verbose
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
@@ -22,9 +31,9 @@ def load_model(n_variaveis: int):
             keras.Input(shape=(n_variaveis,)),
             #layers.Dense(10, activation='relu'),
             #layers.Dense(10, activation='relu'),
-            layers.Dense(20, activation='relu', kernel_regularizer = regularizers.L1(1e-2)),
-            layers.Dense(20, activation='relu', kernel_regularizer = regularizers.L1(1e-2)),
-            layers.Dense(4, activation="softmax"),
+            layers.Dense(20, activation='relu', kernel_regularizer = regularizers.L1(1e-2), kernel_initializer = keras.initializers.GlorotUniform(seed=1), bias_initializer = 'zeros'),
+            layers.Dense(20, activation='relu', kernel_regularizer = regularizers.L1(1e-2), kernel_initializer = keras.initializers.GlorotUniform(seed=1), bias_initializer = 'zeros'),
+            layers.Dense(4, activation="softmax", kernel_initializer = keras.initializers.GlorotUniform(seed=1)),
         ]
     )
     model.compile(keras.optimizers.SGD(learning_rate = 5e-4), "sparse_categorical_crossentropy", metrics=["accuracy"])
@@ -34,8 +43,8 @@ def load_autoencoder_model(input_size: int, encoded_size: int):
     model = keras.Sequential(
         [
             keras.Input(shape=(input_size,), name = 'input'),
-            layers.Dense(encoded_size, activation='relu', name = 'bn', kernel_regularizer = regularizers.L1(1e-2)),
-            layers.Dense(input_size, activation="sigmoid", name = 'output'),
+            layers.Dense(encoded_size, activation='relu', name = 'bn', kernel_regularizer = regularizers.L1(1e-2), kernel_initializer = keras.initializers.GlorotUniform(seed=1)),
+            layers.Dense(input_size, activation="sigmoid", name = 'output', kernel_initializer = keras.initializers.GlorotUniform(seed=1)),
         ]
     )
     model.compile(keras.optimizers.SGD(learning_rate = 1e-2), loss = 'mse')
