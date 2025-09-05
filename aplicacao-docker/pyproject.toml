@@ -29,9 +29,9 @@ clientapp = "aplicacao_docker.client_app:app"
 
 [tool.flwr.app.config]
 # Algoritmos: AP-COV e Autoencoder (pré-preprocessamento), Rede Neural e Regressão Logística (Classificação)
-algoritmo = 'Rede Neural'
-# Se for AP-COV, número de rodadas deve ser igual a 3
-num-server-rounds = 7
+algoritmo = 'Regressão Logística'
+# Se for AP-COV, número de rodadas deve ser igual a 3. Se for Autoencoder, deve ser no mínimo 3.
+num-server-rounds = 5
 # Tipo dos dados necessário apenas para algoritmos de classificação 
 tipo_dados = 'Autoencoder'
 # Geração de amostras sintéticas. Se forem algoritmos de pré-processamento, opção true salva com e sem oversample.

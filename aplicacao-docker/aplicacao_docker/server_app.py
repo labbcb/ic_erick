@@ -73,6 +73,8 @@ class CustomFedAvg(FedAvg):
               print('CALCULADA SVD GLOBAL APROXIMADA')
               self.ap_global_sv = json.dumps(svd.singular_values_.tolist())
               self.ap_global_rsv = json.dumps(svd.components_.tolist())
+              np.savetxt("/app/ap_global_sv.csv", self.ap_global_sv, delimiter = ',')
+              np.savetxt("/app/ap_global_rsv.csv", self.ap_global_rsv, delimiter = ',')
               parameters_aggregated, metrics_aggregated = None, {}
               print(f"Rodada {server_round}: CALCULADOS SV E RSV GLOBAIS")
            elif server_round == 3:
@@ -114,6 +116,10 @@ class CustomFedAvg(FedAvg):
               print(f'LOSS PRÉ-AGREGAÇÃO DA RODADA {ac_loss_aggregated_train} (TREINO)')
               print(f'LOSS PRÉ-AGREGAÇÃO DA RODADA {ac_loss_aggregated_test} (VALIDAÇÃO)')
               print(20*'-')
+              if server_round == self.context.run_config['num-server-rounds']-1:
+                 autoencoder = load_autoencoder_model(input_size = self.context.run_config['input_size'], encoded_size = self.context.run_config['encoded_size'])
+                 autoencoder.set_weights(ndarrays)
+                 autoencoder.save(filepath="/app/autoencoder_tcga.keras")
            elif server_round == self.context.run_config['num-server-rounds']:
               parameters_aggregated, metrics_aggregated = None, {}
               
@@ -126,7 +132,7 @@ class CustomFedAvg(FedAvg):
               ndarrays = parameters_to_ndarrays(parameters_aggregated)
               model = load_model(n_variaveis = self.context.run_config['n_variaveis'])
               model.set_weights(ndarrays)
-              model.save(filepath='modelo_docker_testando.keras')
+              model.save(filepath='rede_neural_tcga.keras')
            # Aggregate loss
            loss_aggregated_train = weighted_loss_avg(
                [
@@ -166,7 +172,7 @@ class CustomFedAvg(FedAvg):
                                 max_iter = self.context.run_config['max_iter'])
               set_model_params(model, ndarrays)
               model.classes_ =  np.array([i for i in range(4)])
-              joblib.dump(model, 'modelo_valid_logreg_sim_ic')
+              joblib.dump(model, 'reg_log_tcga')
            # Aggregate loss
            loss_aggregated_train = weighted_loss_avg(
                [
