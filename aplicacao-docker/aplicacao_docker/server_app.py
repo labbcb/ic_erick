@@ -20,9 +20,9 @@ from flwr.server.strategy import FedAvg
 from flwr.server.strategy.aggregate import aggregate, weighted_loss_avg
 from aplicacao_docker.task import load_data, load_model, get_model, get_model_params, set_initial_params, set_model_params, load_autoencoder_model
 from sklearn.decomposition import TruncatedSVD
+from sklearn.metrics import f1_score, confusion_matrix
 import json
 import joblib
-import keras
 
 class CustomFedAvg(FedAvg):
     def __init__(self, context, *args, **kwargs):
@@ -36,10 +36,10 @@ class CustomFedAvg(FedAvg):
         failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
         ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
         results.sort(key=lambda x: x[1].metrics['client_id'])
-        print([r.num_examples for _, r in results])
         if self.context.run_config['algoritmo'] == 'AP-COV':
            if server_round == 1:
               examples = [r.num_examples for _, r in results]
+              print(examples)
               local_sums = [np.array(json.loads(r.metrics['local_sum'])) for _, r in results]
               local_sums_squares = [np.array(json.loads(r.metrics['local_sum_squares'])) for _, r in results]
               g_mean = sum(local_sums) / sum(examples)
@@ -71,10 +71,10 @@ class CustomFedAvg(FedAvg):
               svd = TruncatedSVD(n_components = min(examples) - 1, algorithm = 'arpack')
               svd.fit(ap_global_cov)
               print('CALCULADA SVD GLOBAL APROXIMADA')
+              np.save("/app/ap_global_sv.npy", svd.singular_values_)
+              np.save("/app/ap_global_rsv.npy", svd.components_)
               self.ap_global_sv = json.dumps(svd.singular_values_.tolist())
               self.ap_global_rsv = json.dumps(svd.components_.tolist())
-              np.savetxt("/app/ap_global_sv.csv", self.ap_global_sv, delimiter = ',')
-              np.savetxt("/app/ap_global_rsv.csv", self.ap_global_rsv, delimiter = ',')
               parameters_aggregated, metrics_aggregated = None, {}
               print(f"Rodada {server_round}: CALCULADOS SV E RSV GLOBAIS")
            elif server_round == 3:
@@ -152,11 +152,27 @@ class CustomFedAvg(FedAvg):
            conf_matrices_train = [np.array(json.loads(res.metrics['conf_matrix_train'])) for _, res in results]
            print(20*"-")
            print("MATRIZ DE CONFUSÃO GLOBAL PRÉ-AGREGAÇÃO DA RODADA (TREINO)")
-           print(sum(conf_matrices_train))
-           conf_matrices_test = [np.array(json.loads(res.metrics['conf_matrix_test'])) for _, res in results]
+           global_conf_m_train = sum(conf_matrices_train)
+           print(global_conf_m_train)
+           y_true_train, y_pred_train = [], []
+           for i, linha in enumerate(global_conf_m_train):
+              for j, qtd in enumerate(linha):
+                 y_true_train.extend([i] * qtd)
+                 y_pred_train.extend([j] * qtd)
+           f1_macro_train = f1_score(np.array(y_true_train), np.array(y_pred_train), average = 'macro')
+           print(f'F1-MACRO PRÉ-AGREGAÇÃO DA RODADA {f1_macro_train} (TREINO)')
            print(20*"-")
            print("MATRIZ DE CONFUSÃO GLOBAL PRÉ-AGREGAÇÃO DA RODADA (VALIDAÇÃO)")
-           print(sum(conf_matrices_test))
+           conf_matrices_test = [np.array(json.loads(res.metrics['conf_matrix_test'])) for _, res in results]
+           global_conf_m_test = sum(conf_matrices_test)
+           print(global_conf_m_test)
+           y_true_test, y_pred_test = [], []
+           for i, linha in enumerate(global_conf_m_test):
+              for j, qtd in enumerate(linha):
+                 y_true_test.extend([i] * qtd)
+                 y_pred_test.extend([j] * qtd)
+           f1_macro_test = f1_score(np.array(y_true_test), np.array(y_pred_test), average = 'macro')
+           print(f'F1-MACRO PRÉ-AGREGAÇÃO DA RODADA {f1_macro_test} (VALIDAÇÃO)')
            print(20*"-")
            print(f"RODADA {server_round}: TREINAMENTO")
         elif self.context.run_config['algoritmo'] == 'Regressão Logística':
@@ -192,12 +208,27 @@ class CustomFedAvg(FedAvg):
            conf_matrices_train = [np.array(json.loads(res.metrics['conf_matrix_train'])) for _, res in results]
            print(20*"-")
            print("MATRIZ DE CONFUSÃO GLOBAL PRÉ-AGREGAÇÃO DA RODADA (TREINO)")
-           print(sum(conf_matrices_train))
-           print(20*"-")
-           conf_matrices_test = [np.array(json.loads(res.metrics['conf_matrix_test'])) for _, res in results]
+           global_conf_m_train = sum(conf_matrices_train)
+           print(global_conf_m_train)
+           y_true_train, y_pred_train = [], []
+           for i, linha in enumerate(global_conf_m_train):
+              for j, qtd in enumerate(linha):
+                 y_true_train.extend([i] * qtd)
+                 y_pred_train.extend([j] * qtd)
+           f1_macro_train = f1_score(np.array(y_true_train), np.array(y_pred_train), average = 'macro')
+           print(f'F1-MACRO PRÉ-AGREGAÇÃO DA RODADA {f1_macro_train} (TREINO)')
            print(20*"-")
            print("MATRIZ DE CONFUSÃO GLOBAL PRÉ-AGREGAÇÃO DA RODADA (VALIDAÇÃO)")
-           print(sum(conf_matrices_test))
+           conf_matrices_test = [np.array(json.loads(res.metrics['conf_matrix_test'])) for _, res in results]
+           global_conf_m_test = sum(conf_matrices_test)
+           print(global_conf_m_test)
+           y_true_test, y_pred_test = [], []
+           for i, linha in enumerate(global_conf_m_test):
+              for j, qtd in enumerate(linha):
+                 y_true_test.extend([i] * qtd)
+                 y_pred_test.extend([j] * qtd)
+           f1_macro_test = f1_score(np.array(y_true_test), np.array(y_pred_test), average = 'macro')
+           print(f'F1-MACRO PRÉ-AGREGAÇÃO DA RODADA {f1_macro_test} (VALIDAÇÃO)')
            print(20*"-")
            print(f"RODADA {server_round}: TREINAMENTO")
         return parameters_aggregated, metrics_aggregated
@@ -353,14 +384,30 @@ class CustomFedAvg(FedAvg):
            conf_matrices_train = [np.array(json.loads(res.metrics['conf_matrix_train'])) for _, res in results]
            print(20*"-")
            print("MATRIZ DE CONFUSÃO GLOBAL PÓS-AGREGAÇÃO DA RODADA (TREINO)")
-           print(sum(conf_matrices_train))
-           conf_matrices_test = [np.array(json.loads(res.metrics['conf_matrix_test'])) for _, res in results]
+           global_conf_m_train = sum(conf_matrices_train)
+           print(global_conf_m_train)
+           y_true_train, y_pred_train = [], []
+           for i, linha in enumerate(global_conf_m_train):
+              for j, qtd in enumerate(linha):
+                 y_true_train.extend([i] * qtd)
+                 y_pred_train.extend([j] * qtd)
+           f1_macro_train = f1_score(np.array(y_true_train), np.array(y_pred_train), average = 'macro')
+           print(f'F1-MACRO PÓS-AGREGAÇÃO DA RODADA {f1_macro_train} (TREINO)')
            print(20*"-")
            print("MATRIZ DE CONFUSÃO GLOBAL PÓS-AGREGAÇÃO DA RODADA (VALIDAÇÃO)")
-           print(sum(conf_matrices_test))
+           conf_matrices_test = [np.array(json.loads(res.metrics['conf_matrix_test'])) for _, res in results]
+           global_conf_m_test = sum(conf_matrices_test)
+           print(global_conf_m_test)
+           y_true_test, y_pred_test = [], []
+           for i, linha in enumerate(global_conf_m_test):
+              for j, qtd in enumerate(linha):
+                 y_true_test.extend([i] * qtd)
+                 y_pred_test.extend([j] * qtd)
+           f1_macro_test = f1_score(np.array(y_true_test), np.array(y_pred_test), average = 'macro')
+           print(f'F1-MACRO PÓS-AGREGAÇÃO DA RODADA {f1_macro_test} (VALIDAÇÃO)')
            print(20*"-")
-           return loss_aggregated_test, {'Acurácia de Validação': sum(accuracies)/total_examples}
-
+           # return loss_aggregated_test, {'Acurácia de Validação': sum(accuracies)/total_examples, 'F1-Macro': f1_macro}
+           return loss_aggregated_test, {'F1-Macro': f1_macro_test}
 
 #def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
 #    accuracies = [num_examples * m['accuracy'] for num_examples, m in metrics]

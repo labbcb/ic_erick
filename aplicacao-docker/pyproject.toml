@@ -12,7 +12,6 @@ dependencies = [
     "flwr-datasets[vision]>=0.5.0",
     "tensorflow>=2.11.1,<2.18.0",
     "pandas",
-    "keras",
     "scikit-learn",
     "imblearn"
 ]
@@ -33,17 +32,18 @@ algoritmo = 'Regressão Logística'
 # Se for AP-COV, número de rodadas deve ser igual a 3. Se for Autoencoder, deve ser no mínimo 3.
 num-server-rounds = 5
 # Tipo dos dados necessário apenas para algoritmos de classificação 
-tipo_dados = 'Autoencoder'
+tipo_dados = 'AP-COV'
 # Geração de amostras sintéticas. Se forem algoritmos de pré-processamento, opção true salva com e sem oversample.
 oversample = true
 # Quantia de variáveis depende dos dados utilizados. Se AP-COV, 23 (tamanho mínimo entre os clientes - 1). Se Autoencoder, igual ao encoded-size.
-n_variaveis = 30
+n_variaveis = 23
+# Autoencoder: 30 (sem L1)
 # Quantia de classes
 n_classes = 4
 # Parâmetros do Autoencoder
 input_size = 60660
 encoded_size = 30
-ac_epochs = 15
+ac_epochs = 5
 ac_batch_size = 32
 # Parâmetros da função de Rede Neural
 epochs = 10

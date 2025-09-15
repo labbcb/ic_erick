@@ -1,5 +1,8 @@
 from typing import Union, Optional
-
+import os
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['TF_DETERMINISTIC_OPS'] = '1'
+os.environ['PYTHONHASHSEED'] = '0'
 # Reprodutibilidade
 import random
 random.seed(1)
@@ -11,13 +14,9 @@ tf.config.threading.set_inter_op_parallelism_threads(1)
 tf.config.experimental.enable_op_determinism()
 tf.random.set_seed(1)
 
-import numpy
 from flwr.common import FitRes, Parameters, Scalar, parameters_to_ndarrays
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy import FedAvg
-import keras
-
-
 from neural_sim_ic.task import load_model
 
 

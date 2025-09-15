@@ -1,4 +1,8 @@
 """neural-sim-ic: A Flower / TensorFlow app."""
+import os
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['TF_DETERMINISTIC_OPS'] = '1'
+os.environ['PYTHONHASHSEED'] = '0'
 # Reprodutibilidade
 import random
 random.seed(1)

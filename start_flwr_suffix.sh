@@ -22,7 +22,7 @@ docker run --rm \
 
 # Inicia o Serverapp (único)
 docker run --rm \
-    -e PYTHONHASHSEED=0 -e TF_DETERMINISTIC_OPS=1 \
+    -e PYTHONHASHSEED=0 -e TF_DETERMINISTIC_OPS=1  -e TF_ENABLE_ONEDNN_OPTS=0 \
     --network flwr-network \
     --name serverapp \
     --detach \
@@ -51,7 +51,7 @@ for SUFIXO in "$@"; do
 
     # Inicia o supernode do hospital
     docker run --rm \
-        -e PYTHONHASHSEED=0 -e TF_DETERMINISTIC_OPS=1 \
+        -e PYTHONHASHSEED=0 -e TF_DETERMINISTIC_OPS=1  -e TF_ENABLE_ONEDNN_OPTS=0 \
         -p ${SN_PORT}:${SN_PORT} \
         --network flwr-network \
         --name supernode-${SUFIXO} \

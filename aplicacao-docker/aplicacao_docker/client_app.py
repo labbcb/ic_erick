@@ -1,6 +1,6 @@
 """quickstart-docker-2: A Flower / PyTorch app."""
 import os
-
+os.environ['TF_ENABLE_ONEDNN_OPTS']='0'
 # Reprodutibilidade
 import random
 random.seed(1)
@@ -18,15 +18,13 @@ from aplicacao_docker.task import load_data, load_model, get_model, get_model_pa
 from collections import Counter
 from sklearn.metrics import confusion_matrix, log_loss
 from sklearn.decomposition import TruncatedSVD
-import numpy as np
 import pandas as pd
 import json
-import keras
-from imblearn.over_sampling import ADASYN, SMOTE
-import random
+from imblearn.over_sampling import SMOTE, ADASYN
 from sklearn.linear_model import LogisticRegression
 import warnings
-import tensorflow as tf
+from tensorflow import keras
+from keras import Input, Model
 
 # Define Flower Client and client_fn
 class FlowerClient(NumPyClient):
@@ -65,13 +63,15 @@ class FlowerClient(NumPyClient):
            elif current_round == 3:
               ap_global_sv = np.array(json.loads(config['ap_global_sv']))
               ap_global_rsv = np.array(json.loads(config['ap_global_rsv']))
+              np.save("/app/ap_global_sv.npy", svd.singular_values_)
+              np.save("/app/ap_global_rsv.npy", svd.components_)
               self.x_train = self.x_train @ ap_global_rsv.T
               self.x_test = self.x_test @ ap_global_rsv.T
               np.savetxt("/app/x_train_pca.csv", self.x_train, delimiter = ',')
               np.savetxt("/app/x_valid_pca.csv", self.x_test, delimiter = ',')
               if self.context.run_config['oversample'] == True:
                  counts = list(Counter(self.y_train).values())
-                 if min(counts) >=2:
+                 if min(counts) >=4:
                     smote = SMOTE(random_state = 1, k_neighbors = min(5, min(counts)-1))
                     x_resampled, y_resampled = smote.fit_resample(X = np.array(self.x_train), y = np.array(self.y_train))
                     self.x_train, self.y_train = x_resampled, y_resampled
@@ -117,18 +117,20 @@ class FlowerClient(NumPyClient):
 
            elif current_round == self.context.run_config['num-server-rounds']:
               self.autoencoder.set_weights(parameters)
-              input_layer = keras.Input(shape = (60660,))
+              input_layer = Input(shape = (60660,))
               bn_layer = self.autoencoder.get_layer(name = 'bn')(input_layer)
-              encoder = keras.Model(input_layer, bn_layer)
+              encoder = Model(input_layer, bn_layer)
               x_train_ac, x_test_ac = encoder.predict(self.x_train), encoder.predict(self.x_test)
+              self.autoencoder.save(filepath="/app/autoencoder_tcga.keras")
+              encoder.save(filepath='/app/encoder_tcga.keras')
               np.savetxt("/app/x_train_ac.csv", x_train_ac, delimiter = ',')
               np.savetxt("/app/x_valid_ac.csv", x_test_ac, delimiter = ',')
               self.x_train, self.x_test = x_train_ac, x_test_ac
               print(self.x_train.shape)
               if self.context.run_config['oversample'] == True:
                  counts = list(Counter(self.y_train).values())
-                 if min(counts) >= 2:
-                    smote = SMOTE(random_state = 1, k_neighbors = min(5, min(counts)-1), sampling_strategy = 'minority')
+                 if min(counts) >= 4:
+                    smote = SMOTE(random_state = 1, k_neighbors = min(5, min(counts)-1), sampling_strategy = 'not majority')
                     x_resampled, y_resampled = smote.fit_resample(X = np.array(self.x_train), y = np.array(self.y_train))
                     self.x_train, self.y_train = x_resampled, y_resampled
                     print(self.x_train.shape)
@@ -137,6 +139,7 @@ class FlowerClient(NumPyClient):
               return [], len(self.x_train), {'client_id': self.client_id}
 
         elif self.context.run_config['algoritmo'] == 'Rede Neural':
+           print(self.y_train.shape)
            self.model.set_weights(parameters)
            self.model.fit(
             self.x_train,

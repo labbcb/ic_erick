@@ -10,13 +10,8 @@ tf.config.threading.set_inter_op_parallelism_threads(1)
 tf.config.experimental.enable_op_determinism()
 tf.random.set_seed(1)
 
-from flwr_datasets import FederatedDataset
-from flwr_datasets.partitioner import IidPartitioner
 from sklearn.linear_model import LogisticRegression
 import pandas as pd
-
-fds = None  # Cache FederatedDataset
-
 
 def load_data(partition_id: int, num_partitions: int):
     """Load partition MNIST data."""

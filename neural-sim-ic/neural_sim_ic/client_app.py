@@ -1,5 +1,9 @@
 """neural-sim-ic: A Flower / TensorFlow app."""
 # Reprodutibilidade
+import os
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['TF_DETERMINISTIC_OPS'] = '1'
+os.environ['PYTHONHASHSEED'] = '0'
 import random
 random.seed(1)
 import numpy as np
@@ -9,8 +13,6 @@ tf.config.threading.set_intra_op_parallelism_threads(1)
 tf.config.threading.set_inter_op_parallelism_threads(1)
 tf.config.experimental.enable_op_determinism()
 tf.random.set_seed(1)
-
-import os
 
 from flwr.client import NumPyClient, ClientApp
 from flwr.common import Context
