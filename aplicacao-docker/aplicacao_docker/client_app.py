@@ -63,8 +63,8 @@ class FlowerClient(NumPyClient):
            elif current_round == 3:
               ap_global_sv = np.array(json.loads(config['ap_global_sv']))
               ap_global_rsv = np.array(json.loads(config['ap_global_rsv']))
-              np.save("/app/ap_global_sv.npy", svd.singular_values_)
-              np.save("/app/ap_global_rsv.npy", svd.components_)
+              np.save("/app/ap_global_sv.npy", ap_global_sv)
+              np.save("/app/ap_global_rsv.npy", ap_global_rsv)
               self.x_train = self.x_train @ ap_global_rsv.T
               self.x_test = self.x_test @ ap_global_rsv.T
               np.savetxt("/app/x_train_pca.csv", self.x_train, delimiter = ',')
@@ -78,6 +78,47 @@ class FlowerClient(NumPyClient):
                     np.savetxt("/app/x_train_pca_resampled.csv", x_resampled, delimiter = ',')
                     np.savetxt("/app/y_train_pca_resampled.csv", y_resampled, delimiter = ',')
               return [], len(self.x_train), {'client_id': self.client_id}
+
+        if self.context.run_config['algoritmo'] == "SUB-IT":
+           if current_round == 1:
+              num_examples = len(self.x_train)
+              local_sum = np.sum(self.x_train, axis = 0)
+              local_sum_squares = np.sum(self.x_train**2, axis = 0)
+              return [], num_examples, {'local_sum': json.dumps(local_sum.tolist()), 'local_sum_squares': json.dumps(local_sum_squares.tolist()), 'client_id': self.client_id}
+           elif current_round == 2:
+              num_examples = len(self.x_train)
+              global_mean = np.array(json.loads(config['global_mean']))
+              global_std = np.array(json.loads(config['global_std']))
+              self.x_train = (self.x_train - global_mean) / global_std
+              self.x_test = (self.x_test - global_mean) / global_std
+              ge = np.array(json.loads(config["ge"]))
+              l1 = np.array(self.x_train) @ ge
+              l2 = np.array(self.x_train.T) @ l1
+              return [], num_examples, {"local_estimate": json.dumps(l2.tolist()), 'client_id': self.client_id}
+           else:
+              num_examples = len(self.x_train)
+              converged = config["converged"]
+              stop = config["stop"]
+              ge = np.array(json.loads(config["ge"]))
+              if not converged and not stop:
+                 l1 = np.array(self.x_train) @ ge
+                 l2 = np.array(self.x_train.T) @ l1
+                 return [], num_examples, {"local_estimate": json.dumps(l2.tolist()), 'client_id': self.client_id} 
+              else:
+                 self.x_train = np.array(self.x_train) @ ge
+                 self.x_test = np.array(self.x_test) @ ge
+                 np.save("/app/global_estimate.npy", ge)
+                 np.savetxt("/app/x_train_subit.csv", self.x_train, delimiter = ',')
+                 np.savetxt("/app/x_valid_subit.csv", self.x_test, delimiter = ',')
+                 if self.context.run_config['oversample'] == True:
+                    counts = list(Counter(self.y_train).values())
+                    if min(counts) >=4:
+                       smote = SMOTE(random_state = 1, k_neighbors = min(5, min(counts)-1))
+                       x_resampled, y_resampled = smote.fit_resample(X = np.array(self.x_train), y = np.array(self.y_train))
+                       self.x_train, self.y_train = x_resampled, y_resampled
+                       np.savetxt("/app/x_train_subit_resampled.csv", x_resampled, delimiter = ',')
+                       np.savetxt("/app/y_train_subit_resampled.csv", y_resampled, delimiter = ',')
+                 return [], num_examples, {'client_id': self.client_id}
 
         elif self.context.run_config['algoritmo'] == 'Autoencoder':
            if current_round == 1:
