@@ -38,12 +38,14 @@ for SUFIXO in "$@"; do
     SN_PORT=$((BASE_PORT + INDEX - 1))
     DATASET_PATH_TRAIN="/home/erick/dados_TCGA/fl_conj_treino_${SUFIXO}.csv"
     DATASET_PATH_VALID="/home/erick/dados_TCGA/fl_conj_valid_${SUFIXO}.csv"
+    DATASET_PATH_TEST="/home/erick/dados_TCGA/fl_conj_test_${SUFIXO}.csv"
     
     # Testa se o arquivo existe
-    if [[ ! -f "${DATASET_PATH_TRAIN}" || ! -f "${DATASET_PATH_VALID}" ]]; then
+    if [[ ! -f "${DATASET_PATH_TRAIN}" || ! -f "${DATASET_PATH_VALID}" || ! -f "${DATASET_PATH_TEST}" ]]; then
         echo "Aviso: Arquivo(s) não encontrado(s):"
         [[ ! -f "${DATASET_PATH_TRAIN}" ]] && echo "  Faltando: ${DATASET_PATH_TRAIN}"
         [[ ! -f "${DATASET_PATH_VALID}"  ]] && echo "  Faltando: ${DATASET_PATH_VALID}"
+        [[ ! -f "${DATASET_PATH_TEST}"  ]] && echo "  Faltando: ${DATASET_PATH_TEST}"
         INDEX=$((INDEX + 1))
         continue
     fi
@@ -67,6 +69,7 @@ for SUFIXO in "$@"; do
         -e PYTHONHASHSEED=0 -e TF_DETERMINISTIC_OPS=1 -e CLIENT_ID=${INDEX} \
         -v ${DATASET_PATH_TRAIN}:/mnt/fl_conj_treino_cliente.csv \
         -v ${DATASET_PATH_VALID}:/mnt/fl_conj_valid_cliente.csv \
+        -v ${DATASET_PATH_TEST}:/mnt/fl_conj_test_cliente.csv \
         --network flwr-network \
         --name client-${SUFIXO} \
         --detach \

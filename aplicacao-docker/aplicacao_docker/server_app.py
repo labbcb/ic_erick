@@ -21,6 +21,7 @@ from flwr.common import (
     DisconnectRes,
     ReconnectIns,
 )
+import importlib
 from typing import List, Tuple, Union, Optional
 from flwr.common import Context, ndarrays_to_parameters, Metrics, FitRes, Parameters, Scalar, parameters_to_ndarrays, FitIns, EvaluateIns, EvaluateRes
 from flwr.common.logger import log
@@ -39,6 +40,7 @@ import json
 import joblib
 import scipy as sc
 import scipy.linalg as la
+from keras import Input, Model
 
 class CustomFedAvg(FedAvg):
     def __init__(self, context, *args, **kwargs):
@@ -55,7 +57,6 @@ class CustomFedAvg(FedAvg):
         if self.context.run_config['algoritmo'] == 'AP-COV':
            if server_round == 1:
               examples = [r.num_examples for _, r in results]
-              print(examples)
               local_sums = [np.array(json.loads(r.metrics['local_sum'])) for _, r in results]
               local_sums_squares = [np.array(json.loads(r.metrics['local_sum_squares'])) for _, r in results]
               g_mean = sum(local_sums) / sum(examples)
@@ -65,9 +66,12 @@ class CustomFedAvg(FedAvg):
               g_var2 = np.array((sum(local_sums_squares) - p2) / (sum(examples) - 1))
               g_std = np.sqrt(g_var)
               g_std[g_std == 0] = 1
+              np.save("/app/g_mean.npy", g_mean)
+              np.save("/app/g_std.npy", g_std)
               self.global_mean = json.dumps(g_mean.tolist())
               self.global_std = json.dumps(g_std.tolist())
-              self.k_components = min(examples)
+              # self.k_components = min(examples)
+              self.k_components = 24
               parameters_aggregated, metrics_aggregated = None, {}
               print(f"RODADA {server_round}: CALCULADAS MÉDIAS E DESVIOS PADRÕES GLOBAIS")
            elif server_round == 2:
@@ -77,18 +81,18 @@ class CustomFedAvg(FedAvg):
               t_local_rsv = [x.T for x in local_rsv]
               i = 0
               for trsv, sv, rsv in zip(t_local_rsv, local_sv, local_rsv):
-                  print(trsv.shape, sv.shape, rsv.shape)
                   if i == 0:
                      ap_global_cov = (trsv @ np.diag(sv) @ rsv)
                   else:
                      ap_global_cov = ap_global_cov + (trsv @ np.diag(sv) @ rsv)
                   i = i + 1
                   print(f"CALCULADA MATRIZ DE COVARIÂNCIA APROXIMADA DO {i}º CLIENTE")
-              svd = TruncatedSVD(n_components = min(examples) - 1, algorithm = 'arpack')
+              #svd = TruncatedSVD(n_components = min(examples), algorithm = "randomized")
+              svd = TruncatedSVD(n_components = 24, algorithm = "randomized")
               svd.fit(ap_global_cov)
               print('CALCULADA SVD GLOBAL APROXIMADA')
-              np.save("/app/ap_global_sv.npy", svd.singular_values_)
-              np.save("/app/ap_global_rsv.npy", svd.components_)
+              np.save("/app/ap_global_sv2.npy", svd.singular_values_)
+              np.save("/app/ap_global_rsv2.npy", svd.components_)
               self.ap_global_sv = json.dumps(svd.singular_values_.tolist())
               self.ap_global_rsv = json.dumps(svd.components_.tolist())
               parameters_aggregated, metrics_aggregated = None, {}
@@ -108,13 +112,15 @@ class CustomFedAvg(FedAvg):
               g_var2 = np.array((sum(local_sums_squares) - p2) / (sum(examples) - 1))
               g_std = np.sqrt(g_var)
               g_std[g_std == 0] = 1
+              np.save("/app/g_mean.npy", g_mean)
+              np.save("/app/g_std.npy", g_std)
               self.global_mean = json.dumps(g_mean.tolist())
               self.global_std = json.dumps(g_std.tolist())
-              self.k_components = min(examples)
+              #self.k_components = min(examples)
               converged = False
               self.increase_num_rounds_by = 1
               self.converged = converged
-              X = np.array(generate_random_gaussian(m = 60660, k = 23))
+              X = np.array(generate_random_gaussian(m = 60660, k = self.context.run_config["n_eigenvectors"]))
               X, R = la.qr(X, mode = "economic")
               self.ge = json.dumps(X.tolist())
               parameters_aggregated, metrics_aggregated = None, {}
@@ -124,15 +130,22 @@ class CustomFedAvg(FedAvg):
               local_estimates = [np.array(json.loads(r.metrics['local_estimate'])) for _, r in results]
               ge_anterior = np.array(json.loads(self.ge))
               soma = sum(local_estimates)
+              E = la.norm(soma, axis=0)
               ge, R = la.qr(soma, mode = "economic")
               converged, deltas, nr_converged = eigenvector_convergence_checker(ge, ge_anterior, tolerance = self.context.run_config["tolerance"])
-              print(f"CONVERGIU: {converged}")
+              if converged:
+                 print("CONVERGIU: SIM")
+              else:
+                 print("CONVERGIU: NÃO")
               print(f"CRITÉRIO DE COLINEARIDADE: {min(deltas)} (DEVE SER 1)")
               print(f"NÚMERO DE AUTOVETORES QUE CONVERGIRAM: {nr_converged}")
               self.stop = (server_round == self.context.run_config["maxit"])
               if self.stop:
                  print(f"ATINGIDO NÚMERO MÁXIMO DE ITERAÇÕES ({self.context.run_config['maxit']})")
               if converged or self.stop:
+                 ord = np.argsort(E)
+                 ge = np.flip(ge[:, ord], axis=1)
+                 E = np.flip(np.sort(E))
                  np.save("/app/global_estimate.npy", ge)
                  self.increase_num_rounds_by = 0
               else:
@@ -154,6 +167,8 @@ class CustomFedAvg(FedAvg):
               g_var2 = np.array((sum(local_sums_squares) - p2) / (sum(examples) - 1))
               g_std = np.sqrt(g_var)
               g_std[g_std == 0] = 1
+              np.save("/app/g_mean.npy", g_mean)
+              np.save("/app/g_std.npy", g_std)
               self.global_mean = json.dumps(g_mean.tolist())
               self.global_std = json.dumps(g_std.tolist())
               self.k_components = min(examples)
@@ -182,6 +197,10 @@ class CustomFedAvg(FedAvg):
               if server_round == self.context.run_config['num-server-rounds']-1:
                  autoencoder = load_autoencoder_model(input_size = self.context.run_config['input_size'], encoded_size = self.context.run_config['encoded_size'])
                  autoencoder.set_weights(ndarrays)
+                 input_layer = Input(shape = (60660,))
+                 bn_layer = autoencoder.get_layer(name = 'bn')(input_layer)
+                 encoder = Model(input_layer, bn_layer)
+                 encoder.save(filepath='/app/encoder_tcga.keras')
                  autoencoder.save(filepath="/app/autoencoder_tcga.keras")
            elif server_round == self.context.run_config['num-server-rounds']:
               parameters_aggregated, metrics_aggregated = None, {}
@@ -193,7 +212,13 @@ class CustomFedAvg(FedAvg):
            else:
               parameters_aggregated, metrics_aggregated = super().aggregate_fit(server_round, results, failures)
               ndarrays = parameters_to_ndarrays(parameters_aggregated)
-              model = load_model(n_variaveis = self.context.run_config['n_variaveis'])
+              regularizer_function = getattr(importlib.import_module("tensorflow.keras.regularizers"), self.context.run_config['regularizer'])
+              regularizer = regularizer_function(self.context.run_config['regularizer_lambda'])
+              model = load_model(n_variaveis = self.context.run_config['n_variaveis'],
+                                 hidden_layer_size = self.context.run_config['hidden_layer_size'],
+                                 hidden_layer_num = self.context.run_config['hidden_layer_num'],
+                                 regularizer = regularizer,
+                                 n_classes = self.context.run_config['n_classes'])
               model.set_weights(ndarrays)
               model.save(filepath='rede_neural_tcga.keras')
            # Aggregate loss
@@ -309,8 +334,12 @@ class CustomFedAvg(FedAvg):
            print(20*"-")
            print("PRINCIPAIS PARÂMETROS DE CONFIGURAÇÃO")
            print(f"Algoritmo: {self.context.run_config['algoritmo']}") 
-           print(f"Tipo de dados: {self.context.run_config['tipo_dados']} ({self.context.run_config['n_variaveis']} variáveis)")
+           if self.context.run_config["algoritmo"] == "Regressão Logística" or self.context.run_config["algoritmo"] == "Rede Neural":
+              print(f"Tipo de dados: {self.context.run_config['tipo_dados']} ({self.context.run_config['n_variaveis']} variáveis)")
            print(f"Oversample: {self.context.run_config['oversample']}")
+           if self.context.run_config["algoritmo"] == "SUB-IT":
+              print(f"Número de autovetores: {self.context.run_config['n_eigenvectors']}")
+              print(f"Tolerância: {self.context.run_config['tolerance']}")
            print(20*"-")
         elif server_round == 2 and self.context.run_config['algoritmo'] == 'AP-COV':
            config = {
@@ -436,8 +465,8 @@ class CustomFedAvg(FedAvg):
                   ]
               )
               print(20*'-')
-              print(f'LOSS PÓS-AGREGAÇÃO DA RODADA {ac_loss_aggregated_train} (TREINO)')
-              print(f'LOSS PÓS-AGREGAÇÃO DA RODADA {ac_loss_aggregated_test} (VALIDAÇÃO)')
+              print(f'LOSS PÓS-AGREGAÇÃO DA RODADA = {ac_loss_aggregated_train} (TREINO)')
+              print(f'LOSS PÓS-AGREGAÇÃO DA RODADA = {ac_loss_aggregated_test} (VALIDAÇÃO)')
               print(20*'-')
               return -1.0, {'loss de validação do autoencoder': ac_loss_aggregated_test}
            elif server_round == self.context.run_config['num-server-rounds']:
@@ -457,8 +486,8 @@ class CustomFedAvg(FedAvg):
                ]
            )
            print(20*'-')
-           print(f'LOSS PÓS-AGREGAÇÃO DA RODADA {loss_aggregated_train} (TREINO)')
-           print(f'LOSS PÓS-AGREGAÇÃO DA RODADA {loss_aggregated_test} (VALIDAÇÃO)')
+           print(f'LOSS PÓS-AGREGAÇÃO DA RODADA = {loss_aggregated_train} (TREINO)')
+           print(f'LOSS PÓS-AGREGAÇÃO DA RODADA = {loss_aggregated_test} (VALIDAÇÃO)')
            eval_metrics = [(res.num_examples, res.metrics) for _, res in results]
            accuracies = [num_examples * m['accuracy_test'] for num_examples, m in eval_metrics]
            total_examples = sum(num_examples for num_examples, _ in eval_metrics)
@@ -473,7 +502,7 @@ class CustomFedAvg(FedAvg):
                  y_true_train.extend([i] * qtd)
                  y_pred_train.extend([j] * qtd)
            f1_macro_train = f1_score(np.array(y_true_train), np.array(y_pred_train), average = 'macro')
-           print(f'F1-MACRO PÓS-AGREGAÇÃO DA RODADA {f1_macro_train} (TREINO)')
+           print(f'F1-MACRO PÓS-AGREGAÇÃO DA RODADA = {f1_macro_train} (TREINO)')
            print(20*"-")
            print("MATRIZ DE CONFUSÃO GLOBAL PÓS-AGREGAÇÃO DA RODADA (VALIDAÇÃO)")
            conf_matrices_test = [np.array(json.loads(res.metrics['conf_matrix_test'])) for _, res in results]
@@ -485,7 +514,7 @@ class CustomFedAvg(FedAvg):
                  y_true_test.extend([i] * qtd)
                  y_pred_test.extend([j] * qtd)
            f1_macro_test = f1_score(np.array(y_true_test), np.array(y_pred_test), average = 'macro')
-           print(f'F1-MACRO PÓS-AGREGAÇÃO DA RODADA {f1_macro_test} (VALIDAÇÃO)')
+           print(f'F1-MACRO PÓS-AGREGAÇÃO DA RODADA = {f1_macro_test} (VALIDAÇÃO)')
            print(20*"-")
            # return loss_aggregated_test, {'Acurácia de Validação': sum(accuracies)/total_examples, 'F1-Macro': f1_macro}
            return loss_aggregated_test, {'F1-Macro': f1_macro_test}
@@ -629,8 +658,15 @@ def server_fn(context: Context):
     # Read from config
     num_rounds = context.run_config["num-server-rounds"]
     # Initialize model parameters
-    if context.run_config['algoritmo'] == 'Rede Neural' or context.run_config['algoritmo'] == 'Autoencoder':
-       initial_parameters = ndarrays_to_parameters(load_model(n_variaveis = context.run_config['n_variaveis']).get_weights())
+    if context.run_config['algoritmo'] == 'Rede Neural':
+       regularizer_function = getattr(importlib.import_module("tensorflow.keras.regularizers"), context.run_config['regularizer'])
+       regularizer = regularizer_function(context.run_config['regularizer_lambda'])
+       model = load_model(n_variaveis = context.run_config['n_variaveis'],
+                          hidden_layer_size = context.run_config['hidden_layer_size'],
+                          hidden_layer_num = context.run_config['hidden_layer_num'],
+                          regularizer = regularizer,
+                          n_classes = context.run_config['n_classes'])
+       initial_parameters = ndarrays_to_parameters(model.get_weights())
     elif context.run_config['algoritmo'] == 'Regressão Logística':
        # Create LogisticRegression Model
        model = get_model(penalty = context.run_config['penalty'],
@@ -655,7 +691,7 @@ def server_fn(context: Context):
     config = ServerConfig(num_rounds=num_rounds)
 
     my_server = MyServer(client_manager = SimpleClientManager(), strategy = strategy)
-    return ServerAppComponents(server = my_server, client_manager = SimpleClientManager(),  strategy=strategy, config=config)
+    return ServerAppComponents(server = my_server, config=config)
 
 # Create ServerApp
 app = ServerApp(server_fn=server_fn)

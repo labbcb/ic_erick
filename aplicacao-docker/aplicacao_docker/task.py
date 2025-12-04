@@ -22,6 +22,7 @@ from sklearn.linear_model import LogisticRegression
 # Make TensorFlow log less verbose
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
+'''
 def load_model(n_variaveis: int):
     model = tf.keras.Sequential(
         [
@@ -35,13 +36,35 @@ def load_model(n_variaveis: int):
     )
     model.compile(optimizers.SGD(learning_rate = 5e-4), "sparse_categorical_crossentropy", metrics=['accuracy'])
     return(model)
+'''
+def load_model(n_variaveis: int, hidden_layer_size, hidden_layer_num, regularizer, n_classes):
+    model = Sequential()
+    model.add(Input(shape=(n_variaveis,)))
+    for i in range(hidden_layer_num):
+        model.add(
+            layers.Dense(
+                units=hidden_layer_size,
+                activation='relu',
+                kernel_regularizer = regularizer,
+                kernel_initializer = initializers.GlorotUniform(seed=1),
+                bias_initializer = 'zeros'
+        )
+    )
+    model.add(layers.Dense(n_classes, activation='softmax',
+                                 kernel_initializer = initializers.GlorotUniform(seed=1),
+                                 bias_initializer = 'zeros'))
+    model.compile(
+         optimizer = keras.optimizers.SGD(learning_rate=5e-4),
+         loss='sparse_categorical_crossentropy',
+         metrics=["accuracy"]
+    )
+    return model
 
 def load_autoencoder_model(input_size: int, encoded_size: int): 
     model = tf.keras.Sequential(
         [
             tf.keras.Input(shape=(input_size,), name = 'input'),
             layers.Dense(encoded_size, activation='relu', name = 'bn', kernel_initializer = initializers.GlorotUniform(seed=1), bias_initializer = 'zeros'),
-            #layers.Dense(encoded_size, activation='relu', name = 'bn', kernel_regularizer = regularizers.L1(1e-2), kernel_initializer = initializers.GlorotUniform(seed=1), bias_initializer = 'zeros'),
             layers.Dense(input_size, activation="sigmoid", name = 'output', kernel_initializer = initializers.GlorotUniform(seed=1), bias_initializer = 'zeros'),
         ]
     )
@@ -53,17 +76,22 @@ def load_data(algoritmo, tipo_dados, oversample):
        if tipo_dados == 'AP-COV':
           if oversample and os.path.exists("/app/x_train_pca_resampled.csv"):
              x_train = pd.read_csv("/app/x_train_pca_resampled.csv", header = None)
-             x_test = pd.read_csv("/app/x_valid_pca.csv", header = None)
+             #x_test = pd.read_csv("/app/x_valid_pca.csv", header = None)
+             x_test = pd.read_csv("/app/x_test_pca.csv", header = None)
              y_train = pd.read_csv("/app/y_train_pca_resampled.csv", header = None)
-             y_test = pd.read_csv("/mnt/fl_conj_valid_cliente.csv")['subtipo2']
+             #y_test = pd.read_csv("/mnt/fl_conj_valid_cliente.csv")['subtipo2']
+             y_test = pd.read_csv("/mnt/fl_conj_test_cliente.csv")['subtipo2']
              ee = LabelEncoder()
              ee.fit(['BRCA.Basal', 'BRCA.Her2','BRCA.LumA', 'BRCA.LumB'])
              y_test = ee.transform(y_test)
           else:
              x_train = pd.read_csv("/app/x_train_pca.csv", header = None)
-             x_test = pd.read_csv("/app/x_valid_pca.csv", header = None)
-             y_train = pd.read_csv("/mnt/fl_conj_treino_cliente.csv")['subtipo2']
-             y_test = pd.read_csv("/mnt/fl_conj_valid_cliente.csv")['subtipo2']
+             #x_test = pd.read_csv("/app/x_valid_pca.csv", header = None)
+             x_test = pd.read_csv("/app/x_test_pca.csv", header = None)
+             #y_train = pd.read_csv("/mnt/fl_conj_treino_cliente.csv")['subtipo2']
+             y_train = pd.concat([pd.read_csv("/mnt/fl_conj_treino_cliente.csv")['subtipo2'], pd.read_csv("/mnt/fl_conj_valid_cliente.csv")['subtipo2']])
+             #y_test = pd.read_csv("/mnt/fl_conj_valid_cliente.csv")['subtipo2']
+             y_test = pd.read_csv("/mnt/fl_conj_test_cliente.csv")['subtipo2']
              ee = LabelEncoder()
              ee.fit(['BRCA.Basal', 'BRCA.Her2','BRCA.LumA', 'BRCA.LumB'])
              y_train = ee.transform(y_train)
@@ -72,16 +100,21 @@ def load_data(algoritmo, tipo_dados, oversample):
           if oversample and os.path.exists("/app/x_train_ac_resampled.csv"):
              x_train = pd.read_csv("/app/x_train_ac_resampled.csv", header = None)
              x_test = pd.read_csv("/app/x_valid_ac.csv", header = None)
+             #x_test = pd.read_csv("/app/x_test_ac.csv", header = None)
              y_train = pd.read_csv("/app/y_train_ac_resampled.csv", header = None)
              y_test = pd.read_csv("/mnt/fl_conj_valid_cliente.csv")['subtipo2']
+             #y_test = pd.read_csv("/mnt/fl_conj_test_cliente.csv")['subtipo2']
              ee = LabelEncoder()
              ee.fit(['BRCA.Basal', 'BRCA.Her2','BRCA.LumA', 'BRCA.LumB'])
              y_test = ee.transform(y_test)
           else:
              x_train = pd.read_csv("/app/x_train_ac.csv", header = None)
              x_test = pd.read_csv("/app/x_valid_ac.csv", header = None)
+             #x_test = pd.read_csv("/app/x_test_ac.csv", header = None)
              y_train = pd.read_csv("/mnt/fl_conj_treino_cliente.csv")['subtipo2']
+             #y_train = pd.concat([pd.read_csv("/mnt/fl_conj_treino_cliente.csv")['subtipo2'], pd.read_csv("/mnt/fl_conj_valid_cliente.csv")['subtipo2']])
              y_test = pd.read_csv("/mnt/fl_conj_valid_cliente.csv")['subtipo2']
+             #y_test = pd.read_csv("/mnt/fl_conj_test_cliente.csv")['subtipo2'] 
              ee = LabelEncoder()
              ee.fit(['BRCA.Basal', 'BRCA.Her2','BRCA.LumA', 'BRCA.LumB'])
              y_train = ee.transform(y_train)
@@ -89,30 +122,37 @@ def load_data(algoritmo, tipo_dados, oversample):
        elif tipo_dados == "SUB-IT":
           if oversample and os.path.exists("/app/x_train_subit_resampled.csv"):
              x_train = pd.read_csv("/app/x_train_subit_resampled.csv", header = None)
-             x_test = pd.read_csv("/app/x_valid_subit.csv", header = None)
+             #x_test = pd.read_csv("/app/x_valid_subit.csv", header = None)
+             x_test = pd.read_csv("/app/x_test_subit.csv", header = None)
              y_train = pd.read_csv("/app/y_train_subit_resampled.csv", header = None)
-             y_test = pd.read_csv("/mnt/fl_conj_valid_cliente.csv")['subtipo2']
+             #y_test = pd.read_csv("/mnt/fl_conj_valid_cliente.csv")['subtipo2']
+             y_test = pd.read_csv("/mnt/fl_conj_test_cliente.csv")['subtipo2']
              ee = LabelEncoder()
              ee.fit(['BRCA.Basal', 'BRCA.Her2','BRCA.LumA', 'BRCA.LumB'])
              y_test = ee.transform(y_test)
           else:
              x_train = pd.read_csv("/app/x_train_subit.csv", header = None)
-             x_test = pd.read_csv("/app/x_valid_subit.csv", header = None)
-             y_train = pd.read_csv("/mnt/fl_conj_treino_cliente.csv")['subtipo2']
-             y_test = pd.read_csv("/mnt/fl_conj_valid_cliente.csv")['subtipo2']
+             #x_test = pd.read_csv("/app/x_valid_subit.csv", header = None)
+             x_test = pd.read_csv("/app/x_test_subit.csv", header = None)
+             #y_train = pd.read_csv("/mnt/fl_conj_treino_cliente.csv")['subtipo2']
+             y_train = pd.concat([pd.read_csv("/mnt/fl_conj_treino_cliente.csv")['subtipo2'], pd.read_csv("/mnt/fl_conj_valid_cliente.csv")['subtipo2']])
+             #y_test = pd.read_csv("/mnt/fl_conj_valid_cliente.csv")['subtipo2']
+             y_test = pd.read_csv("/mnt/fl_conj_test_cliente.csv")['subtipo2']
              ee = LabelEncoder()
              ee.fit(['BRCA.Basal', 'BRCA.Her2','BRCA.LumA', 'BRCA.LumB'])
              y_train = ee.transform(y_train)
              y_test = ee.transform(y_test) 
     elif algoritmo == 'AP-COV' or algoritmo == 'Autoencoder' or algoritmo == "SUB-IT":
-       dados_treino = pd.read_csv("/mnt/fl_conj_treino_cliente.csv")
-       dados_teste = pd.read_csv("/mnt/fl_conj_valid_cliente.csv")
-       x_train, y_train = dados_treino.iloc[:,5:], dados_treino['subtipo2']
-       x_test, y_test = dados_teste.iloc[:,5:], dados_teste['subtipo2']
-       ee = LabelEncoder()
-       ee.fit(['BRCA.Basal', 'BRCA.Her2','BRCA.LumA', 'BRCA.LumB'])
-       y_train = ee.transform(y_train)
-       y_test = ee.transform(y_test)
+       	  #dados_treino = pd.read_csv("/mnt/fl_conj_treino_cliente.csv")
+          dados_treino = pd.concat([pd.read_csv("/mnt/fl_conj_treino_cliente.csv"), pd.read_csv("/mnt/fl_conj_valid_cliente.csv")])
+          #dados_teste = pd.read_csv("/mnt/fl_conj_valid_cliente.csv")
+          dados_teste = pd.read_csv("/mnt/fl_conj_test_cliente.csv")
+          x_train, y_train = dados_treino.iloc[:,5:], dados_treino['subtipo2']
+          x_test, y_test = dados_teste.iloc[:,5:], dados_teste['subtipo2']
+          ee = LabelEncoder()
+          ee.fit(['BRCA.Basal', 'BRCA.Her2','BRCA.LumA', 'BRCA.LumB'])
+          y_train = ee.transform(y_train)
+          y_test = ee.transform(y_test)
     return x_train, y_train, x_test, y_test
 
 def get_model(penalty: str, C: float, solver: str, max_iter: int):

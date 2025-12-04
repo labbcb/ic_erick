@@ -12,6 +12,7 @@ tf.config.threading.set_inter_op_parallelism_threads(1)
 tf.config.experimental.enable_op_determinism()
 tf.random.set_seed(1)
 
+import importlib
 from flwr.client import ClientApp, NumPyClient
 from flwr.common import Context, parameters_to_ndarrays, ndarrays_to_parameters, ParametersRecord, ConfigRecord
 from aplicacao_docker.task import load_data, load_model, get_model, get_model_params, set_initial_params, set_model_params, load_autoencoder_model
@@ -54,8 +55,10 @@ class FlowerClient(NumPyClient):
               global_std = np.array(json.loads(config['global_std']))
               self.x_train = (self.x_train - global_mean) / global_std
               self.x_test = (self.x_test - global_mean) / global_std
+              np.save("/app/g_mean.npy", global_mean)
+              np.save("/app/g_std.npy", global_std)
               k = int(config['k_components'])
-              tsvd = TruncatedSVD(n_components = k-1, algorithm = 'arpack')
+              tsvd = TruncatedSVD(n_components = k, algorithm = "randomized")
               tsvd.fit(np.array(self.x_train))
               sv = json.dumps(tsvd.singular_values_.tolist())
               rsv = json.dumps(tsvd.components_.tolist())
@@ -65,14 +68,20 @@ class FlowerClient(NumPyClient):
               ap_global_rsv = np.array(json.loads(config['ap_global_rsv']))
               np.save("/app/ap_global_sv.npy", ap_global_sv)
               np.save("/app/ap_global_rsv.npy", ap_global_rsv)
+              global_mean = np.load("/app/g_mean.npy")
+              global_std = np.load("/app/g_std.npy")
+              self.x_train = (self.x_train - global_mean) / global_std
+              self.x_test = (self.x_test - global_mean) / global_std
               self.x_train = self.x_train @ ap_global_rsv.T
               self.x_test = self.x_test @ ap_global_rsv.T
               np.savetxt("/app/x_train_pca.csv", self.x_train, delimiter = ',')
-              np.savetxt("/app/x_valid_pca.csv", self.x_test, delimiter = ',')
+              #np.savetxt("/app/x_valid_pca.csv", self.x_test, delimiter = ',')
+              np.savetxt("/app/x_test_pca.csv", self.x_test, delimiter = ',')
               if self.context.run_config['oversample'] == True:
                  counts = list(Counter(self.y_train).values())
-                 if min(counts) >=4:
-                    smote = SMOTE(random_state = 1, k_neighbors = min(5, min(counts)-1))
+                 # Para clientes com pelo menos 4 amostras em cada classe (A2 BH C8 D8 E2)
+                 if self.client_id in [1, 7, 8, 9, 10]:
+                    smote = SMOTE(random_state = 1, k_neighbors = 3)
                     x_resampled, y_resampled = smote.fit_resample(X = np.array(self.x_train), y = np.array(self.y_train))
                     self.x_train, self.y_train = x_resampled, y_resampled
                     np.savetxt("/app/x_train_pca_resampled.csv", x_resampled, delimiter = ',')
@@ -91,6 +100,8 @@ class FlowerClient(NumPyClient):
               global_std = np.array(json.loads(config['global_std']))
               self.x_train = (self.x_train - global_mean) / global_std
               self.x_test = (self.x_test - global_mean) / global_std
+              np.save("/app/g_mean.npy", global_mean)
+              np.save("/app/g_std.npy", global_std)
               ge = np.array(json.loads(config["ge"]))
               l1 = np.array(self.x_train) @ ge
               l2 = np.array(self.x_train.T) @ l1
@@ -100,6 +111,10 @@ class FlowerClient(NumPyClient):
               converged = config["converged"]
               stop = config["stop"]
               ge = np.array(json.loads(config["ge"]))
+              global_mean = np.load("/app/g_mean.npy")
+              global_std = np.load("/app/g_std.npy")
+              self.x_train = (self.x_train - global_mean) / global_std
+              self.x_test = (self.x_test - global_mean) / global_std
               if not converged and not stop:
                  l1 = np.array(self.x_train) @ ge
                  l2 = np.array(self.x_train.T) @ l1
@@ -109,11 +124,13 @@ class FlowerClient(NumPyClient):
                  self.x_test = np.array(self.x_test) @ ge
                  np.save("/app/global_estimate.npy", ge)
                  np.savetxt("/app/x_train_subit.csv", self.x_train, delimiter = ',')
-                 np.savetxt("/app/x_valid_subit.csv", self.x_test, delimiter = ',')
+                 #np.savetxt("/app/x_valid_subit.csv", self.x_test, delimiter = ',')
+                 np.savetxt("/app/x_test_subit.csv", self.x_test, delimiter = ',')
                  if self.context.run_config['oversample'] == True:
                     counts = list(Counter(self.y_train).values())
-                    if min(counts) >=4:
-                       smote = SMOTE(random_state = 1, k_neighbors = min(5, min(counts)-1))
+                    # Para clientes com pelo menos 4 amostras em cada classe (A2 BH C8 D8 E2)
+                    if self.client_id in [1, 7, 8, 9, 10]:
+                       smote = SMOTE(random_state = 1, k_neighbors = 3)
                        x_resampled, y_resampled = smote.fit_resample(X = np.array(self.x_train), y = np.array(self.y_train))
                        self.x_train, self.y_train = x_resampled, y_resampled
                        np.savetxt("/app/x_train_subit_resampled.csv", x_resampled, delimiter = ',')
@@ -128,6 +145,13 @@ class FlowerClient(NumPyClient):
               return [], num_examples, {'local_sum': json.dumps(local_sum.tolist()), 'local_sum_squares': json.dumps(local_sum_squares.tolist()), 'client_id': self.client_id}
 
            elif current_round == 2:
+              num_examples = len(self.x_train)
+              global_mean = np.array(json.loads(config['global_mean']))
+              global_std = np.array(json.loads(config['global_std']))
+              self.x_train = (self.x_train - global_mean) / global_std
+              self.x_test = (self.x_test - global_mean) / global_std
+              np.save("/app/g_mean.npy", global_mean)
+              np.save("/app/g_std.npy", global_std)
               self.autoencoder.fit(
                self.x_train,
                self.x_train,
@@ -142,6 +166,10 @@ class FlowerClient(NumPyClient):
               return model_parameters, len(self.x_train), {'ac_loss_train': ac_loss_train, 'ac_loss_test': ac_loss_test, 'n_test': len(self.x_test), 'client_id': self.client_id}
 
            elif 3 <= current_round <= self.context.run_config['num-server-rounds'] - 1:
+              global_mean = np.load("/app/g_mean.npy")
+              global_std = np.load("/app/g_std.npy") 
+              self.x_train = (self.x_train - global_mean) / global_std
+              self.x_test = (self.x_test - global_mean) / global_std
               self.autoencoder.set_weights(parameters)
               self.autoencoder.fit(
                self.x_train,
@@ -157,6 +185,10 @@ class FlowerClient(NumPyClient):
               return model_parameters, len(self.x_train), {'ac_loss_train': ac_loss_train, 'ac_loss_test': ac_loss_test, 'n_test': len(self.x_test), 'client_id': self.client_id}
 
            elif current_round == self.context.run_config['num-server-rounds']:
+              global_mean = np.load("/app/g_mean.npy")
+              global_std = np.load("/app/g_std.npy") 
+              self.x_train = (self.x_train - global_mean) / global_std
+              self.x_test = (self.x_test - global_mean) / global_std
               self.autoencoder.set_weights(parameters)
               input_layer = Input(shape = (60660,))
               bn_layer = self.autoencoder.get_layer(name = 'bn')(input_layer)
@@ -166,21 +198,20 @@ class FlowerClient(NumPyClient):
               encoder.save(filepath='/app/encoder_tcga.keras')
               np.savetxt("/app/x_train_ac.csv", x_train_ac, delimiter = ',')
               np.savetxt("/app/x_valid_ac.csv", x_test_ac, delimiter = ',')
+              #np.savetxt("/app/x_test_ac.csv", x_test_ac, delimiter = ',')
               self.x_train, self.x_test = x_train_ac, x_test_ac
-              print(self.x_train.shape)
               if self.context.run_config['oversample'] == True:
                  counts = list(Counter(self.y_train).values())
-                 if min(counts) >= 4:
-                    smote = SMOTE(random_state = 1, k_neighbors = min(5, min(counts)-1), sampling_strategy = 'not majority')
+                 # Para clientes com pelo menos 4 amostras em cada classe (A2 BH C8 D8 E2)
+                 if self.client_id in [1, 7, 8, 9, 10]:
+                    smote = SMOTE(random_state = 1, k_neighbors = 3)
                     x_resampled, y_resampled = smote.fit_resample(X = np.array(self.x_train), y = np.array(self.y_train))
                     self.x_train, self.y_train = x_resampled, y_resampled
-                    print(self.x_train.shape)
                     np.savetxt("/app/x_train_ac_resampled.csv", x_resampled, delimiter = ',')
                     np.savetxt("/app/y_train_ac_resampled.csv", y_resampled, delimiter = ',')
               return [], len(self.x_train), {'client_id': self.client_id}
 
         elif self.context.run_config['algoritmo'] == 'Rede Neural':
-           print(self.y_train.shape)
            self.model.set_weights(parameters)
            self.model.fit(
             self.x_train,
@@ -237,6 +268,10 @@ class FlowerClient(NumPyClient):
            if current_round == 1:
               return -1.0, len(self.x_test), {}
            elif 2 <= current_round <= self.context.run_config['num-server-rounds'] - 1:
+              global_mean = np.load("/app/g_mean.npy")
+              global_std = np.load("/app/g_std.npy") 
+              self.x_train = (self.x_train - global_mean) / global_std
+              self.x_test = (self.x_test - global_mean) / global_std
               self.autoencoder.set_weights(parameters)
               ac_loss_train = self.autoencoder.evaluate(self.x_train, self.x_train, verbose = 0)
               ac_loss_test = self.autoencoder.evaluate(self.x_test, self.x_test, verbose = 0)
@@ -294,7 +329,13 @@ def client_fn(context: Context):
                           n_variaveis = context.run_config['n_variaveis'])
 
     elif context.run_config['algoritmo'] == 'Rede Neural':
-       model = load_model(n_variaveis = context.run_config['n_variaveis'])
+       regularizer_function = getattr(importlib.import_module("tensorflow.keras.regularizers"), context.run_config['regularizer'])
+       regularizer = regularizer_function(context.run_config['regularizer_lambda'])
+       model = load_model(n_variaveis = context.run_config['n_variaveis'],
+                          hidden_layer_size = context.run_config['hidden_layer_size'],
+                          hidden_layer_num = context.run_config['hidden_layer_num'],
+                          regularizer = regularizer, 
+                          n_classes = context.run_config['n_classes'])
 
     else:
        model = None

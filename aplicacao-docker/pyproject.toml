@@ -29,40 +29,45 @@ clientapp = "aplicacao_docker.client_app:app"
 
 [tool.flwr.app.config]
 # Algoritmos: AP-COV e Autoencoder (pré-preprocessamento), Rede Neural e Regressão Logística (Classificação)
-algoritmo = "AP-COV"
+algoritmo = "Rede Neural"
 # Se for AP-COV, número de rodadas deve ser igual a 3. Se for Autoencoder, deve ser no mínimo 3. Se for SUB-IT, deve ser 2.
-num-server-rounds = 3
+num-server-rounds = 5
 # Tipo dos dados necessário apenas para algoritmos de classificação 
 tipo_dados = "AP-COV"
 # Geração de amostras sintéticas. Se forem algoritmos de pré-processamento, opção true salva com e sem oversample.
 oversample = true
-# Quantia de variáveis depende dos dados utilizados. Se AP-COV, 23 (tamanho mínimo entre os clientes - 1). Se Autoencoder, igual ao encoded-size.
-n_variaveis = 23
-# Autoencoder: 30 (sem L1)
+# Quantia de variáveis depende dos dados utilizados. Se AP-COV, 24 (tamanho mínimo entre os clientes). Se Autoencoder, igual ao encoded-size.
+n_variaveis = 24
 # Quantia de classes
 n_classes = 4
 
 # Parâmetros do SUB-IT
 maxit = 1000
+n_eigenvectors = 40
 # Tolerância padrão é 10e-9
-tolerance = 10e-9
+tolerance = 10e-5
 
 # Parâmetros do Autoencoder
 input_size = 60660
+# 30
 encoded_size = 30
 ac_epochs = 5
 ac_batch_size = 32
 
 # Parâmetros da função de Rede Neural
-epochs = 1
+hidden_layer_size = 16
+hidden_layer_num = 1
+regularizer = "L2"
+regularizer_lambda = 0.001
+epochs = 15
 batch_size = 32
 verbose = false
 
 # Parâmetros da função de Regressão Logística
-penalty = 'l1'
-C = 0.5
+penalty = "l1"
+C = 0.1
 solver = 'saga'
-max_iter = 10
+max_iter = 15
 
 [tool.flwr.federations.local-deployment]
 address = "127.0.0.1:9093"

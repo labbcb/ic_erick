@@ -15,10 +15,10 @@ import pandas as pd
 
 def load_data(partition_id: int, num_partitions: int):
     """Load partition MNIST data."""
-    dados_treino = pd.read_csv("~/ic_erick/dados_simulacao/IC_S_fl_conj_treino_total.csv")
+    #dados_treino = pd.read_csv("~/ic_erick/dados_simulacao/IC_S_fl_conj_treino_total.csv")
     dados_teste = pd.read_csv("~/ic_erick/dados_simulacao/IC_S_fl_conj_valid_total.csv")
-    # Junção dos dados para treino após seleção de hiperparâmetros
-    dados_treino = pd.concat([dados_treino, dados_teste])
+    # Dados para treino após seleção de hiperparâmetros
+    dados_treino = pd.read_csv("~/ic_erick/dados_simulacao/IC_S_fl_conj_treino_final.csv")
     dataset_treino = dados_treino[dados_treino['Cliente'] == (partition_id + 1)]
     dataset_teste = dados_teste[dados_teste['Cliente'] == (partition_id + 1)]
     X_train, y_train = dataset_treino[['x1', 'x2']], dataset_treino['Resposta']
