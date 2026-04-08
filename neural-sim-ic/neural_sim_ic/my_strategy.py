@@ -36,6 +36,6 @@ class CustomFedAvg(FedAvg):
         ndarrays = parameters_to_ndarrays(parameters_aggregated)
         model = load_model()
         model.set_weights(ndarrays)
-        model.save(filepath='modelo_neural_sim_ic.keras')
+        model.save(filepath='modelo_neural_sim_ic_final.keras')
 
         return parameters_aggregated, metrics_aggregated

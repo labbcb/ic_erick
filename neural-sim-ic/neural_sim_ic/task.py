@@ -33,10 +33,10 @@ def load_model():
     return model
 
 def load_data(partition_id, num_partitions):
-    dados_treino = pd.read_csv("~/ic_erick/dados_simulacao/IC_S_fl_conj_treino_total.csv")
+    #dados_treino = pd.read_csv("~/ic_erick/dados_simulacao/IC_S_fl_conj_treino_total.csv")
     dados_teste = pd.read_csv("~/ic_erick/dados_simulacao/IC_S_fl_conj_valid_total.csv")
-    # Junção de datasets para retreino após seleção de modelo
-    dados_treino = pd.concat([dados_treino, dados_teste])
+    # Dados para retreino após seleção de modelo
+    dados_treino = pd.read_csv("~/ic_erick/dados_simulacao/IC_S_fl_conj_treino_final.csv")
     dataset_treino = dados_treino[dados_treino['Cliente'] == (partition_id + 1)]
     dataset_teste = dados_teste[dados_teste['Cliente'] == (partition_id + 1)]
     x_train, y_train = dataset_treino[['x1', 'x2']], dataset_treino['Resposta']
