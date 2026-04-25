@@ -13,7 +13,7 @@ Cada arquivo possui colunas:
 
 Os dados foram simulados de acordo com a tabela e as equações abaixo:
 
-<left>
+<center>
 
 | *Cliente* | $$\boldsymbol{x_{1}}$$ | $$\boldsymbol{x_{2}}$$ | $$\boldsymbol{\alpha}$$ | $$\boldsymbol{\beta_{1}}$$ | $$\boldsymbol{\beta_{2}}$$ | $$\boldsymbol{\epsilon}$$ | $$\boldsymbol{n}$$ |
 | --- | --- | --- | --- | --- | --- | --- | --- | 
@@ -23,10 +23,10 @@ Os dados foram simulados de acordo com a tabela e as equações abaixo:
 
 
 
-$ \eta _{ij}= \alpha_ix_{1ij} + \beta_{1i}x_{2ij} + \beta_{2i} + \varepsilon_{ij}; i = 1,2,3; j = 1, ..., n_i $
+$$ \eta _{ij}= \alpha_ix_{1ij} + \beta_{1i}x_{2ij} + \beta_{2i} + \varepsilon_{ij}; i = 1,2,3; j = 1, ..., n_i $$
 
-$ p _{ij} = \frac{1}{1+e^{-\eta _{ij}}} \text{ (Função Logística)} $
+$$ p _{ij} = \frac{1}{1+e^{-\eta _{ij}}} \text{ (Função Logística)} $$
 
-$ y_{ij} \sim Bernoulli(p_{ij}) $
+$$ y_{ij} \sim Bernoulli(p_{ij}) $$
 
-</left>
+</center>
