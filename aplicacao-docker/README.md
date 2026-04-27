@@ -33,7 +33,7 @@
 ~/ic_erick/start_flwr_suffix.sh A2 A8 AC AO AR B6 BH C8 D8 E2 EW
 ```
 
-2. Altere os dados a serem lidos conforme a etapa que se deseja realizar (treinamento/validação) dentro da pasta [`aplicacao-docker`](aplicacao-docker), no arquivo [`task.py`](aplicacao-docker/task.py), na função `load_data` e no arquivo `client_app.py` na função `fit`. Dessa forma, os modelos são treinados no conjunto treino e testados no conjunto validação.
+2. Altere os dados a serem lidos conforme a etapa que se deseja realizar (treinamento/validação) dentro da pasta [`aplicacao-docker`](aplicacao-docker/aplicacao_docker), no arquivo [`task.py`](aplicacao-docker/task.py), na função `load_data` e no arquivo `client_app.py` na função `fit`. Dessa forma, os modelos são treinados no conjunto treino e testados no conjunto validação.
 
 3. No arquivo [`pyproject.toml`](pyproject.toml), escolha o método de redução de dimensionalidade por meio da opção `algoritmo` e rode o programa:
 
