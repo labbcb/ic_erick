@@ -6,7 +6,16 @@
     - [`client_app.py`](aplicacao_docker/client_app.py): Métodos analíticos utilizados localmente por cada cliente, incluindo pré-processamento, treinamento e avaliação de modelos;
     - [`server_app.py`](aplicacao_docker/server_app.py): Tarefas realizadas pelo agregador central, incluindo agregação de estatísticas sumárias (pré-processamento), modelos e métricas;
     - [`task.py`](aplicacao_docker/task.py): Arquivo auxiliar para definição de funções;
+- Pasta [`objetos`](objetos): Contém arquivos referentes a medidas obtidas no pré-processamento e modelos federados finais:
+    - [`ap_global_rsv2.npy`](ap_global_rsv2.npy): Valores singulares à direita globais, calculados por meio do método de [PCA Federada usando Agregação de Subespaços](https://doi.org/10.1093/bioadv/vbac026);
+    - [`g_mean.npy`](g_mean.npy): Médias de cada gene;
+    - [`g_std.npy`](g_std.npy): Desvios padrão de cada gene;
+    - [`global_estimate.npy`](global_estimate.npy): Estimativa global dos autovetores, calculados por meio do método de [Iteração de Subespaços Federada](https://doi.org/10.1093/bioadv/vbac026);
+    - [`rede_neural_tcga.keras`](rede_neural_tcga.keras): Modelo de rede neural federado final
+    - [`reg_log_tcga`](reg_log_tcga): Modelo de regressão logística federado final
+- [`clientapp.Dockerfile`](clientapp.Dockerfile): arquivo utilizado para instalação das dependências.
 - [`grid_search.sh`](grid_search.sh): Automatização da seleção de hiperparâmetros. Para cada combinação de hiperparâmetros, salva o resultado nos arquivos [`results_rl.csv`](results_rl.csv) (Regressão Linear) e [`results_rn.csv`](results_rn.csv) (Rede Neural).
+- [`ìnstrucoes_flower.md`](ìnstrucoes_flower.md): Instruções para construção do ambiente federado com contêineres Docker ([Quickstart with Docker](https://flower.ai/docs/framework/docker/tutorial-quickstart-docker.html))
 - [`pyproject.toml`](pyproject.toml): Arquivo de parâmetros do Flower, inclui dependências, arquivos componentes e definição de técnicas ou modelos e seus hiperparâmetros.
 - [`results_rl.csv`](results_rl.csv) e [`results_rn.csv`](results_rn.csv): Tabelas com resultados da seleção de hiperparâmetros dos modelos de Regressão Linear e de Rede Neural, respectivamente. Elas contém as colunas:
     - `tipo_dados`: Método de redução de dimensionalidade empregado;
@@ -17,17 +26,11 @@
     - `f1`: Métrica de Desempenho F1-Macro;
     - `loss`: Métrica Loss.
 - [`serverapp.Dockerfile`](serverapp.Dockerfile): arquivo utilizado para instalação das dependências.
-- Pasta [`objetos`](objetos): Contém arquivos referentes a medidas obtidas no pré-processamento e modelos federados finais:
-    - [`ap_global_rsv2.npy`](ap_global_rsv2.npy): Valores singulares à direita globais, calculados por meio do método de [PCA Federada usando Agregação de Subespaços](https://doi.org/10.1093/bioadv/vbac026);
-    - [`g_mean.npy`](g_mean.npy): Médias de cada gene;
-    - [`g_std.npy`](g_std.npy): Desvios padrão de cada gene;
-    - [`global_estimate.npy`](global_estimate.npy): Estimativa global dos autovetores, calculados por meio do método de [Iteração de Subespaços Federada](https://doi.org/10.1093/bioadv/vbac026);
-    - [`rede_neural_tcga.keras`](rede_neural_tcga.keras): Modelo de rede neural federado final
-    - [`reg_log_tcga`](reg_log_tcga): Modelo de regressão logística federado final
+
 
 ## Instruções de Uso
 
-1. Usando o arquivo [`start_flwr_suffix.sh`](../start_flwr_suffix.sh), crie a rede de contêineres Docker para cada hospital participante:
+1. Usando o arquivo [`start_flwr_suffix.sh`](start_flwr_suffix.sh), crie a rede de contêineres Docker para cada hospital participante:
 
 ```bash
 ~/ic_erick/start_flwr_suffix.sh A2 A8 AC AO AR B6 BH C8 D8 E2 EW
